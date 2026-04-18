@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MEAL PREP</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="app-header">
+    <span class="app-title">MEAL PREP</span>
+    <nav class="tab-nav">
+      <button class="tab-btn active" data-tab="piano">PIANO</button>
+      <button class="tab-btn" data-tab="ricette">RICETTE</button>
+      <button class="tab-btn" data-tab="prep">PREP</button>
+      <button class="tab-btn" data-tab="ingredienti">INGREDIENTI</button>
+    </nav>
+  </header>
+
+  <main class="app-main">
+
+    <!-- TAB: PIANO -->
+    <section id="tab-piano" class="tab-content active">
+      <div class="piano-top">
+        <div class="piano-date" id="piano-date"></div>
+        <div class="garmin-field">
+          <label class="field-label" for="garmin-input">GARMIN +kcal</label>
+          <input type="number" id="garmin-input" class="mono-input" placeholder="0" min="0" max="5000">
+        </div>
+      </div>
+
+      <div class="macro-bar-wrapper">
+        <div class="macro-totals" id="macro-totals"></div>
+        <div class="macro-bars" id="macro-bars"></div>
+      </div>
+
+      <div class="meal-grid">
+        <div class="meal-slot" data-meal="colazione">
+          <div class="meal-slot-header">
+            <span class="meal-label">COLAZIONE</span>
+            <button class="add-to-meal-btn" data-meal="colazione">+ AGGIUNGI</button>
+          </div>
+          <div class="meal-recipes" id="meal-colazione"></div>
+        </div>
+        <div class="meal-slot" data-meal="pranzo">
+          <div class="meal-slot-header">
+            <span class="meal-label">PRANZO</span>
+            <button class="add-to-meal-btn" data-meal="pranzo">+ AGGIUNGI</button>
+          </div>
+          <div class="meal-recipes" id="meal-pranzo"></div>
+        </div>
+        <div class="meal-slot" data-meal="cena">
+          <div class="meal-slot-header">
+            <span class="meal-label">CENA</span>
+            <button class="add-to-meal-btn" data-meal="cena">+ AGGIUNGI</button>
+          </div>
+          <div class="meal-recipes" id="meal-cena"></div>
+        </div>
+        <div class="meal-slot" data-meal="snack">
+          <div class="meal-slot-header">
+            <span class="meal-label">SNACK</span>
+            <button class="add-to-meal-btn" data-meal="snack">+ AGGIUNGI</button>
+          </div>
+          <div class="meal-recipes" id="meal-snack"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB: RICETTE -->
+    <section id="tab-ricette" class="tab-content">
+      <div class="section-header">
+        <span class="section-title">RICETTE</span>
+        <button class="primary-btn" id="new-recipe-btn">+ NUOVA RICETTA</button>
+      </div>
+      <div class="recipe-grid" id="recipe-grid"></div>
+    </section>
+
+    <!-- TAB: PREP -->
+    <section id="tab-prep" class="tab-content">
+      <div class="section-header">
+        <span class="section-title">SESSIONE PREP</span>
+        <div class="prep-days-control">
+          <label class="field-label" for="prep-days">GIORNI DA COPRIRE</label>
+          <input type="number" id="prep-days" class="mono-input" value="3" min="1" max="7">
+        </div>
+      </div>
+      <div id="prep-content"></div>
+    </section>
+
+    <!-- TAB: INGREDIENTI -->
+    <section id="tab-ingredienti" class="tab-content">
+      <div class="section-header">
+        <span class="section-title">DATABASE INGREDIENTI</span>
+        <span class="section-note">valori per 100g</span>
+      </div>
+      <div id="ingredients-table"></div>
+    </section>
+
+  </main>
+
+  <!-- MODAL: Recipe Picker -->
+  <div class="modal-overlay hidden" id="recipe-picker-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">SCEGLI RICETTA</span>
+        <button class="modal-close" id="picker-close">✕</button>
+      </div>
+      <div class="modal-body" id="recipe-picker-list"></div>
+    </div>
+  </div>
+
+  <!-- MODAL: Recipe Builder -->
+  <div class="modal-overlay hidden" id="recipe-builder-modal">
+    <div class="modal modal-wide">
+      <div class="modal-header">
+        <span class="modal-title">NUOVA RICETTA</span>
+        <button class="modal-close" id="builder-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div>
+          <label class="field-label" for="recipe-name-input">NOME RICETTA</label>
+          <input type="text" id="recipe-name-input" class="mono-input full-width" placeholder="es. Buddha Bowl">
+        </div>
+        <div>
+          <label class="field-label">CATEGORIA</label>
+          <select id="recipe-category-input" class="mono-input">
+            <option value="colazione">Colazione</option>
+            <option value="pranzo">Pranzo</option>
+            <option value="cena">Cena</option>
+            <option value="snack" selected>Snack</option>
+          </select>
+        </div>
+        <div id="builder-ingredients"></div>
+        <button class="secondary-btn" id="add-ingredient-row-btn">+ INGREDIENTE</button>
+        <div class="builder-preview" id="builder-preview">
+          <div class="builder-preview-stat"><div class="builder-preview-val">0</div><div class="builder-preview-label">KCAL</div></div>
+          <div class="builder-preview-stat"><div class="builder-preview-val">0</div><div class="builder-preview-label">PROT</div></div>
+          <div class="builder-preview-stat"><div class="builder-preview-val">0</div><div class="builder-preview-label">CARB</div></div>
+          <div class="builder-preview-stat"><div class="builder-preview-val">0</div><div class="builder-preview-label">GRAS</div></div>
+        </div>
+        <button class="primary-btn" id="save-recipe-btn">SALVA RICETTA</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="data/ingredients.js"></script>
+  <script src="data/recipes.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
