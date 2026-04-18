@@ -17,7 +17,19 @@
       <button class="tab-btn" data-tab="prep">PREP</button>
       <button class="tab-btn" data-tab="ingredienti">INGREDIENTI</button>
     </nav>
+    <div class="header-actions">
+      <button class="action-btn" id="export-btn" title="Esporta backup">⬇ ESPORTA</button>
+      <label class="action-btn" id="import-label" title="Importa backup">⬆ IMPORTA
+        <input type="file" id="import-input" accept=".json" style="display:none">
+      </label>
+    </div>
   </header>
+
+  <div class="backup-banner hidden" id="backup-banner">
+    <span id="backup-banner-text"></span>
+    <button class="primary-btn" id="backup-banner-export">ESPORTA ORA</button>
+    <button class="banner-dismiss" id="backup-banner-dismiss">✕</button>
+  </div>
 
   <main class="app-main">
 

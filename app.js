@@ -5,7 +5,9 @@ const STORAGE = {
   recipes:    'mealprep_recipes',
   plans:      'mealprep_plans',
   customIngs: 'mealprep_custom_ingredients',
+  lastExport: 'mealprep_last_export',
 };
+const BACKUP_REMINDER_DAYS = 7;
 const CAT_LABELS = { colazione: 'COLAZIONE', pranzo: 'PRANZO', cena: 'CENA', snack: 'SNACK' };
 const DAY_NAMES  = ['DOM', 'LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB'];
 
@@ -643,6 +645,72 @@ function saveCustomIngredient() {
   closeIngredientBuilder();
 }
 
+/* ── EXPORT / IMPORT ─────────────────────────────────────────────────────────── */
+function exportData() {
+  const backup = {
+    version:           1,
+    exportedAt:        new Date().toISOString(),
+    recipes:           state.recipes,
+    plans:             state.plans,
+    customIngredients: state.customIngredients,
+  };
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  const date = new Date().toISOString().slice(0, 10);
+  a.href     = url;
+  a.download = `mealprep-backup-${date}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+
+  localStorage.setItem(STORAGE.lastExport, Date.now().toString());
+  checkBackupReminder();
+}
+
+function importData(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const backup = JSON.parse(e.target.result);
+      if (!backup.recipes || !backup.plans) throw new Error('Formato non valido');
+
+      state.recipes           = backup.recipes           || [];
+      state.plans             = backup.plans             || {};
+      state.customIngredients = backup.customIngredients || [];
+      saveState();
+
+      renderWeekStrip();
+      renderPiano();
+      alert('Importazione completata.');
+    } catch {
+      alert('File non valido. Assicurati di usare un backup esportato da questa app.');
+    }
+  };
+  reader.readAsText(file);
+}
+
+/* ── BACKUP REMINDER ─────────────────────────────────────────────────────────── */
+function checkBackupReminder() {
+  const banner      = document.getElementById('backup-banner');
+  const bannerText  = document.getElementById('backup-banner-text');
+  const lastExport  = localStorage.getItem(STORAGE.lastExport);
+
+  if (!lastExport) {
+    bannerText.textContent = 'Nessun backup ancora. Esporta i tuoi dati per non perderli.';
+    banner.classList.remove('hidden');
+    return;
+  }
+
+  const daysSince = Math.floor((Date.now() - Number(lastExport)) / 86400000);
+  if (daysSince >= BACKUP_REMINDER_DAYS) {
+    bannerText.textContent = `Ultimo backup: ${daysSince} giorni fa. Esporta per aggiornarlo.`;
+    banner.classList.remove('hidden');
+  } else {
+    banner.classList.add('hidden');
+  }
+}
+
 /* ── NAVIGATION ──────────────────────────────────────────────────────────────── */
 function switchTab(tabName) {
   document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -714,6 +782,17 @@ function init() {
   document.getElementById('add-ingredient-row-btn').addEventListener('click', addIngredientRow);
   document.getElementById('save-recipe-btn').addEventListener('click', saveNewRecipe);
 
+  // Export / Import
+  document.getElementById('export-btn').addEventListener('click', exportData);
+  document.getElementById('import-input').addEventListener('change', e => {
+    importData(e.target.files[0]);
+    e.target.value = '';
+  });
+  document.getElementById('backup-banner-export').addEventListener('click', exportData);
+  document.getElementById('backup-banner-dismiss').addEventListener('click', () => {
+    document.getElementById('backup-banner').classList.add('hidden');
+  });
+
   // Ingredient builder
   document.getElementById('new-ingredient-btn').addEventListener('click', openIngredientBuilder);
   document.getElementById('ing-builder-close').addEventListener('click', closeIngredientBuilder);
@@ -728,6 +807,7 @@ function init() {
   // Initial render
   renderWeekStrip();
   renderPiano();
+  checkBackupReminder();
 }
 
 document.addEventListener('DOMContentLoaded', init);
