@@ -1,17 +1,17 @@
 /* ── DESIGN TOKENS ─────────────────────────────────────────────────────────── */
 :root {
   --bg:         #0d0d0d;
-  --surface:    #161616;
-  --surface2:   #1e1e1e;
-  --border:     #2a2a2a;
-  --text:       #e0e0e0;
-  --muted:      #555;
+  --surface:    #181818;
+  --surface2:   #222222;
+  --border:     #303030;
+  --text:       #ececec;
+  --muted:      #888;
   --accent:     #ff4500;
   --accent-dim: #cc3600;
   --green:      #3dba6e;
   --yellow:     #f0c040;
   --red:        #e04040;
-  --purple:     #8888ff;
+  --purple:     #9999ff;
   --font:       'IBM Plex Mono', 'Courier New', monospace;
   --radius:     2px;
 }
@@ -23,7 +23,7 @@ body {
   font-family: var(--font);
   background: var(--bg);
   color: var(--text);
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.5;
 }
 
@@ -32,8 +32,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 24px;
-  height: 52px;
+  padding: 0 28px;
+  height: 56px;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
   position: sticky;
@@ -41,7 +41,7 @@ body {
   z-index: 100;
 }
 .app-title {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 600;
   letter-spacing: 4px;
   color: var(--accent);
@@ -54,9 +54,9 @@ body {
   border: 1px solid transparent;
   color: var(--muted);
   font-family: var(--font);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 2px;
-  padding: 6px 14px;
+  padding: 7px 16px;
   cursor: pointer;
   border-radius: var(--radius);
   transition: color 0.15s, border-color 0.15s;
@@ -65,11 +65,7 @@ body {
 .tab-btn.active { color: var(--accent); border-color: var(--accent); }
 
 /* ── LAYOUT ────────────────────────────────────────────────────────────────── */
-.app-main {
-  padding: 24px;
-  max-width: 1200px;
-  margin: 0 auto;
-}
+.app-main { padding: 24px 28px; max-width: 1200px; margin: 0 auto; }
 .tab-content { display: none; }
 .tab-content.active { display: block; }
 
@@ -81,12 +77,12 @@ body {
   margin-bottom: 24px;
 }
 .section-title {
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 3px;
   color: var(--muted);
   font-weight: 600;
 }
-.section-note { font-size: 11px; color: var(--muted); }
+.section-note { font-size: 12px; color: var(--muted); }
 
 /* ── BUTTONS ───────────────────────────────────────────────────────────────── */
 .primary-btn {
@@ -94,9 +90,9 @@ body {
   color: #fff;
   border: none;
   font-family: var(--font);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 2px;
-  padding: 8px 16px;
+  padding: 9px 18px;
   cursor: pointer;
   border-radius: var(--radius);
   font-weight: 600;
@@ -110,9 +106,9 @@ body {
   border: 1px solid var(--border);
   color: var(--muted);
   font-family: var(--font);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 2px;
-  padding: 7px 14px;
+  padding: 8px 16px;
   cursor: pointer;
   border-radius: var(--radius);
   transition: color 0.15s, border-color 0.15s;
@@ -125,8 +121,8 @@ body {
   border: 1px solid var(--border);
   color: var(--text);
   font-family: var(--font);
-  font-size: 13px;
-  padding: 7px 10px;
+  font-size: 14px;
+  padding: 8px 11px;
   border-radius: var(--radius);
   outline: none;
   transition: border-color 0.15s;
@@ -136,32 +132,109 @@ body {
 
 .field-label {
   display: block;
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 2px;
   color: var(--muted);
-  margin-bottom: 6px;
+  margin-bottom: 7px;
 }
 
-/* ── PIANO TAB ─────────────────────────────────────────────────────────────── */
+/* ── WEEK STRIP ────────────────────────────────────────────────────────────── */
+.week-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.week-arrow {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-family: var(--font);
+  font-size: 16px;
+  width: 36px;
+  height: 36px;
+  cursor: pointer;
+  border-radius: var(--radius);
+  flex-shrink: 0;
+  transition: color 0.15s, border-color 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.week-arrow:hover { color: var(--text); border-color: var(--text); }
+.week-strip {
+  flex: 1;
+  display: flex;
+  gap: 6px;
+}
+.week-day-btn {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-family: var(--font);
+  cursor: pointer;
+  border-radius: var(--radius);
+  padding: 8px 4px 6px;
+  text-align: center;
+  transition: border-color 0.15s, color 0.15s;
+  min-width: 0;
+}
+.week-day-btn:hover { border-color: #444; color: var(--text); }
+.week-day-btn.active { border-color: var(--accent); color: var(--text); }
+.week-day-btn.is-today .wd-name::after { content: ' ·'; color: var(--accent); }
+.wd-name {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: inherit;
+  margin-bottom: 4px;
+}
+.wd-num {
+  display: block;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1;
+  margin-bottom: 6px;
+  color: inherit;
+}
+.wd-bar-track {
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+  margin: 0 4px;
+}
+.wd-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent);
+  transition: width 0.3s;
+}
+.wd-bar-fill.ok   { background: var(--green); }
+.wd-bar-fill.near { background: var(--yellow); }
+.wd-bar-fill.over { background: var(--red); }
+
+/* ── PIANO TOP ─────────────────────────────────────────────────────────────── */
 .piano-top {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 .piano-date {
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 600;
-  letter-spacing: 2px;
+  letter-spacing: 1px;
 }
 .garmin-field { text-align: right; }
-.garmin-field .mono-input { width: 110px; text-align: right; }
+.garmin-field .mono-input { width: 120px; text-align: right; }
 
 /* ── MACRO BARS ────────────────────────────────────────────────────────────── */
 .macro-bar-wrapper {
   background: var(--surface);
   border: 1px solid var(--border);
-  padding: 20px 24px;
+  padding: 22px 26px;
   margin-bottom: 24px;
   border-radius: var(--radius);
 }
@@ -169,17 +242,17 @@ body {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 16px;
-  margin-bottom: 20px;
+  margin-bottom: 22px;
 }
 .macro-stat-label {
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 2px;
   color: var(--muted);
   display: block;
-  margin-bottom: 4px;
+  margin-bottom: 5px;
 }
 .macro-stat-value {
-  font-size: 30px;
+  font-size: 36px;
   font-weight: 600;
   line-height: 1;
   color: var(--text);
@@ -187,27 +260,27 @@ body {
 .macro-stat-value.over { color: var(--red); }
 .macro-stat-value.near { color: var(--yellow); }
 .macro-stat-value.ok   { color: var(--green); }
-.macro-stat-target { font-size: 11px; color: var(--muted); }
+.macro-stat-target { font-size: 12px; color: var(--muted); }
 
-.macro-bars { display: flex; flex-direction: column; gap: 8px; }
-.macro-bar-row { display: flex; align-items: center; gap: 12px; }
+.macro-bars { display: flex; flex-direction: column; gap: 10px; }
+.macro-bar-row { display: flex; align-items: center; gap: 14px; }
 .macro-bar-name {
-  width: 76px;
-  font-size: 10px;
+  width: 80px;
+  font-size: 11px;
   letter-spacing: 2px;
   color: var(--muted);
   flex-shrink: 0;
 }
 .macro-bar-track {
   flex: 1;
-  height: 4px;
+  height: 5px;
   background: var(--border);
-  border-radius: 2px;
+  border-radius: 3px;
   overflow: hidden;
 }
 .macro-bar-fill {
   height: 100%;
-  border-radius: 2px;
+  border-radius: 3px;
   background: var(--accent);
   transition: width 0.3s ease;
 }
@@ -215,9 +288,9 @@ body {
 .macro-bar-fill.near { background: var(--yellow); }
 .macro-bar-fill.over { background: var(--red); }
 .macro-bar-pct {
-  width: 38px;
+  width: 42px;
   text-align: right;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
   flex-shrink: 0;
 }
@@ -242,7 +315,7 @@ body {
   margin-bottom: 12px;
 }
 .meal-label {
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 3px;
   color: var(--muted);
   font-weight: 600;
@@ -252,16 +325,16 @@ body {
   border: 1px solid var(--border);
   color: var(--muted);
   font-family: var(--font);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 1px;
-  padding: 4px 8px;
+  padding: 5px 10px;
   cursor: pointer;
   border-radius: var(--radius);
   transition: color 0.15s, border-color 0.15s;
 }
 .add-to-meal-btn:hover { color: var(--accent); border-color: var(--accent); }
 
-.meal-recipes { display: flex; flex-direction: column; gap: 6px; }
+.meal-recipes { display: flex; flex-direction: column; gap: 7px; }
 
 .meal-recipe-card {
   display: flex;
@@ -269,18 +342,18 @@ body {
   align-items: center;
   background: var(--surface2);
   border: 1px solid var(--border);
-  padding: 8px 10px;
+  padding: 10px 12px;
   border-radius: var(--radius);
   gap: 8px;
 }
-.meal-recipe-name { font-size: 12px; font-weight: 500; }
-.meal-recipe-macros { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.meal-recipe-name { font-size: 14px; font-weight: 500; }
+.meal-recipe-macros { font-size: 12px; color: var(--muted); margin-top: 3px; }
 .meal-recipe-remove {
   background: none;
   border: none;
   color: var(--muted);
   cursor: pointer;
-  font-size: 14px;
+  font-size: 15px;
   padding: 2px 4px;
   line-height: 1;
   flex-shrink: 0;
@@ -291,34 +364,33 @@ body {
 /* ── RECIPE GRID ───────────────────────────────────────────────────────────── */
 .recipe-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
   gap: 16px;
 }
 .recipe-card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 20px 20px 20px 24px;
-  cursor: default;
+  padding: 20px 20px 20px 26px;
   transition: border-color 0.15s;
   position: relative;
   overflow: hidden;
 }
-.recipe-card:hover { border-color: #3a3a3a; }
-.recipe-card-name { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+.recipe-card:hover { border-color: #404040; }
+.recipe-card-name { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
 .recipe-card-category {
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 2px;
   color: var(--muted);
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 .recipe-card-macros {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 8px;
 }
-.recipe-macro-val   { font-size: 20px; font-weight: 600; line-height: 1; }
-.recipe-macro-label { font-size: 10px; color: var(--muted); letter-spacing: 1px; }
+.recipe-macro-val   { font-size: 22px; font-weight: 600; line-height: 1; }
+.recipe-macro-label { font-size: 11px; color: var(--muted); letter-spacing: 1px; }
 .recipe-card-delete {
   position: absolute;
   top: 10px;
@@ -327,7 +399,7 @@ body {
   border: none;
   color: var(--muted);
   cursor: pointer;
-  font-size: 13px;
+  font-size: 14px;
   opacity: 0;
   transition: opacity 0.15s, color 0.15s;
   line-height: 1;
@@ -336,12 +408,10 @@ body {
 .recipe-card:hover .recipe-card-delete { opacity: 1; }
 .recipe-card-delete:hover { color: var(--red); }
 
-/* category accent bar */
 .cat-badge {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 3px;
+  top: 0; left: 0;
+  width: 4px;
   height: 100%;
 }
 .cat-colazione { background: var(--yellow); }
@@ -357,70 +427,58 @@ body {
   margin-left: auto;
 }
 .prep-days-control .field-label { margin-bottom: 0; }
-.prep-days-control .mono-input  { width: 60px; text-align: center; }
+.prep-days-control .mono-input  { width: 64px; text-align: center; }
 
 .prep-section-title {
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 3px;
   color: var(--muted);
   margin: 24px 0 10px;
 }
-.prep-table {
-  width: 100%;
-  border-collapse: collapse;
-}
+.prep-table { width: 100%; border-collapse: collapse; }
 .prep-table th,
 .prep-table td {
   text-align: left;
-  padding: 10px 14px;
+  padding: 11px 14px;
   border-bottom: 1px solid var(--border);
-  font-size: 13px;
+  font-size: 14px;
 }
 .prep-table th {
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 2px;
   color: var(--muted);
   font-weight: 600;
 }
 .prep-table td:last-child,
 .prep-table th:last-child { text-align: right; }
-.prep-empty {
-  color: var(--muted);
-  font-size: 12px;
-  margin-top: 16px;
-  line-height: 1.8;
-}
+.prep-empty { color: var(--muted); font-size: 14px; margin-top: 16px; line-height: 2; }
 
 /* ── INGREDIENTS TABLE ─────────────────────────────────────────────────────── */
-.ing-table {
-  width: 100%;
-  border-collapse: collapse;
-}
+.ing-table { width: 100%; border-collapse: collapse; }
 .ing-table th,
 .ing-table td {
-  padding: 9px 14px;
+  padding: 10px 14px;
   border-bottom: 1px solid var(--border);
-  font-size: 12px;
+  font-size: 14px;
 }
 .ing-table th {
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 2px;
   color: var(--muted);
   font-weight: 600;
   text-align: left;
   position: sticky;
-  top: 52px;
+  top: 56px;
   background: var(--bg);
   z-index: 10;
 }
 .ing-table td:nth-child(n+3) { text-align: right; color: var(--muted); }
 .ing-category-row td {
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 3px;
   color: var(--accent);
   padding-top: 20px;
   padding-bottom: 6px;
-  border-bottom: 1px solid var(--border);
   font-weight: 600;
 }
 
@@ -428,7 +486,7 @@ body {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.78);
+  background: rgba(0,0,0,0.80);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -439,22 +497,22 @@ body {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  width: 480px;
-  max-height: 80vh;
+  width: 500px;
+  max-height: 82vh;
   display: flex;
   flex-direction: column;
 }
-.modal-wide { width: 640px; }
+.modal-wide { width: 660px; }
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 20px;
+  padding: 18px 22px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 .modal-title {
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 3px;
   color: var(--muted);
   font-weight: 600;
@@ -464,13 +522,13 @@ body {
   border: none;
   color: var(--muted);
   cursor: pointer;
-  font-size: 16px;
+  font-size: 18px;
   line-height: 1;
   transition: color 0.15s;
 }
 .modal-close:hover { color: var(--text); }
 .modal-body {
-  padding: 20px;
+  padding: 20px 22px;
   overflow-y: auto;
   flex: 1;
   display: flex;
@@ -478,28 +536,63 @@ body {
   gap: 14px;
 }
 
-/* ── RECIPE PICKER ─────────────────────────────────────────────────────────── */
+/* ── PICKER MODE TABS ──────────────────────────────────────────────────────── */
+.picker-mode-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.picker-mode-tab {
+  flex: 1;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font-family: var(--font);
+  font-size: 11px;
+  letter-spacing: 2px;
+  padding: 12px 8px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  margin-bottom: -1px;
+}
+.picker-mode-tab:hover { color: var(--text); }
+.picker-mode-tab.active { color: var(--text); border-bottom-color: var(--accent); }
+
+/* ── RECIPE PICKER LIST ────────────────────────────────────────────────────── */
 .picker-recipe-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 14px;
+  padding: 13px 14px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
 }
-.picker-recipe-item:hover {
-  border-color: var(--accent);
+.picker-recipe-item:hover { border-color: var(--accent); background: var(--surface2); }
+.picker-recipe-name { font-size: 14px; font-weight: 500; }
+.picker-recipe-cal  { font-size: 12px; color: var(--muted); white-space: nowrap; }
+
+/* ── INGREDIENT PICKER ─────────────────────────────────────────────────────── */
+.picker-ing-preview {
   background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  min-height: 64px;
 }
-.picker-recipe-name { font-size: 13px; font-weight: 500; }
-.picker-recipe-cal  { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.picker-ing-preview-stat { text-align: center; }
+.picker-ing-preview-val  { font-size: 20px; font-weight: 600; }
+.picker-ing-preview-label { font-size: 11px; color: var(--muted); letter-spacing: 1px; }
 
 /* ── RECIPE BUILDER ────────────────────────────────────────────────────────── */
 .builder-ingredient-row {
   display: grid;
-  grid-template-columns: 1fr 80px 28px;
+  grid-template-columns: 1fr 88px 30px;
   gap: 8px;
   align-items: center;
 }
@@ -508,8 +601,8 @@ body {
   border: 1px solid var(--border);
   color: var(--text);
   font-family: var(--font);
-  font-size: 12px;
-  padding: 7px 8px;
+  font-size: 13px;
+  padding: 8px 9px;
   border-radius: var(--radius);
   outline: none;
   cursor: pointer;
@@ -521,7 +614,7 @@ body {
   border: none;
   color: var(--muted);
   cursor: pointer;
-  font-size: 15px;
+  font-size: 16px;
   text-align: center;
   line-height: 1;
   transition: color 0.15s;
@@ -531,15 +624,18 @@ body {
 .builder-preview {
   background: var(--surface2);
   border: 1px solid var(--border);
-  padding: 16px;
+  padding: 18px;
   border-radius: var(--radius);
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 8px;
 }
 .builder-preview-stat { text-align: center; }
-.builder-preview-val  { font-size: 22px; font-weight: 600; }
-.builder-preview-label { font-size: 10px; color: var(--muted); letter-spacing: 1px; }
+.builder-preview-val  { font-size: 24px; font-weight: 600; }
+.builder-preview-label { font-size: 11px; color: var(--muted); letter-spacing: 1px; }
+
+/* ── HIDDEN ────────────────────────────────────────────────────────────────── */
+.hidden { display: none !important; }
 
 /* ── SCROLLBAR ─────────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; }

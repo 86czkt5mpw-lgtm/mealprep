@@ -23,6 +23,14 @@
 
     <!-- TAB: PIANO -->
     <section id="tab-piano" class="tab-content active">
+
+      <!-- Week strip -->
+      <div class="week-nav">
+        <button class="week-arrow" id="week-prev">←</button>
+        <div class="week-strip" id="week-strip"></div>
+        <button class="week-arrow" id="week-next">→</button>
+      </div>
+
       <div class="piano-top">
         <div class="piano-date" id="piano-date"></div>
         <div class="garmin-field">
@@ -100,14 +108,34 @@
 
   </main>
 
-  <!-- MODAL: Recipe Picker -->
+  <!-- MODAL: Picker (ricette + ingredienti) -->
   <div class="modal-overlay hidden" id="recipe-picker-modal">
     <div class="modal">
       <div class="modal-header">
-        <span class="modal-title">SCEGLI RICETTA</span>
+        <span class="modal-title" id="picker-modal-title">AGGIUNGI AL PASTO</span>
         <button class="modal-close" id="picker-close">✕</button>
       </div>
-      <div class="modal-body" id="recipe-picker-list"></div>
+      <div class="picker-mode-tabs">
+        <button class="picker-mode-tab active" data-mode="ricette">RICETTE</button>
+        <button class="picker-mode-tab" data-mode="ingrediente">INGREDIENTE SINGOLO</button>
+      </div>
+      <div class="modal-body">
+        <div id="recipe-picker-list"></div>
+        <div id="ingredient-picker-form" class="hidden">
+          <div>
+            <label class="field-label">INGREDIENTE</label>
+            <select id="picker-ing-select" class="mono-input" style="width:100%">
+              <option value="">— scegli ingrediente —</option>
+            </select>
+          </div>
+          <div>
+            <label class="field-label">GRAMMI</label>
+            <input type="number" id="picker-ing-grams" class="mono-input" placeholder="100" min="1" max="2000" style="width:120px">
+          </div>
+          <div class="picker-ing-preview" id="picker-ing-preview"></div>
+          <button class="primary-btn" id="picker-ing-confirm">+ AGGIUNGI AL PASTO</button>
+        </div>
+      </div>
     </div>
   </div>
 
