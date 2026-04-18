@@ -2,8 +2,9 @@
 const TARGETS = { cal: 2400, prot: 150, carb: 285, fat: 75 };
 const MEALS   = ['colazione', 'pranzo', 'cena', 'snack'];
 const STORAGE = {
-  recipes: 'mealprep_recipes',
-  plans:   'mealprep_plans',
+  recipes:    'mealprep_recipes',
+  plans:      'mealprep_plans',
+  customIngs: 'mealprep_custom_ingredients',
 };
 const CAT_LABELS = { colazione: 'COLAZIONE', pranzo: 'PRANZO', cena: 'CENA', snack: 'SNACK' };
 const DAY_NAMES  = ['DOM', 'LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB'];
@@ -12,6 +13,7 @@ const DAY_NAMES  = ['DOM', 'LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB'];
 const state = {
   recipes:          [],
   plans:            {},   // { 'YYYY-MM-DD': { colazione:[], pranzo:[], cena:[], snack:[], garmin:0 } }
+  customIngredients: [],  // ingredienti aggiunti dall'utente
   selectedDate:     '',
   pickerTargetMeal: null,
   pickerMode:       'ricette',
@@ -71,7 +73,7 @@ function getEntryMacros(entry) {
     return recipe ? calcRecipeMacros(recipe) : { cal: 0, prot: 0, carb: 0, fat: 0 };
   }
   if (entry && entry.type === 'ingredient') {
-    const ing = INGREDIENTS.find(i => i.id === entry.ingredientId);
+    const ing = allIngredients().find(i => i.id === entry.ingredientId);
     if (!ing) return { cal: 0, prot: 0, carb: 0, fat: 0 };
     const f = entry.grams / 100;
     return { cal: ing.cal * f, prot: ing.prot * f, carb: ing.carb * f, fat: ing.fat * f };
@@ -85,16 +87,22 @@ function getEntryLabel(entry) {
     return recipe ? recipe.name : 'Ricetta eliminata';
   }
   if (entry && entry.type === 'ingredient') {
-    const ing = INGREDIENTS.find(i => i.id === entry.ingredientId);
+    const ing = allIngredients().find(i => i.id === entry.ingredientId);
     return ing ? `${ing.name} — ${entry.grams}g` : 'Ingrediente';
   }
   return '—';
 }
 
+/* ── INGREDIENTS MERGE ───────────────────────────────────────────────────────── */
+// Returns base + custom ingredients merged. Custom entries have custom:true.
+function allIngredients() {
+  return [...INGREDIENTS, ...state.customIngredients];
+}
+
 /* ── MACRO UTILS ─────────────────────────────────────────────────────────────── */
 function calcRecipeMacros(recipe) {
   return recipe.ingredients.reduce((acc, item) => {
-    const ing = INGREDIENTS.find(i => i.id === item.ingredientId);
+    const ing = allIngredients().find(i => i.id === item.ingredientId);
     if (!ing) return acc;
     const f = item.grams / 100;
     return { cal: acc.cal + ing.cal * f, prot: acc.prot + ing.prot * f,
@@ -133,8 +141,9 @@ function barClass(pct) {
 
 /* ── STORAGE ─────────────────────────────────────────────────────────────────── */
 function saveState() {
-  localStorage.setItem(STORAGE.recipes, JSON.stringify(state.recipes));
-  localStorage.setItem(STORAGE.plans,   JSON.stringify(state.plans));
+  localStorage.setItem(STORAGE.recipes,    JSON.stringify(state.recipes));
+  localStorage.setItem(STORAGE.plans,      JSON.stringify(state.plans));
+  localStorage.setItem(STORAGE.customIngs, JSON.stringify(state.customIngredients));
 }
 
 function loadState() {
@@ -157,6 +166,9 @@ function loadState() {
       state.plans[today] = { ...parsed, garmin: Number(oldGarmin) || 0 };
     }
   }
+
+  const storedCustom = localStorage.getItem(STORAGE.customIngs);
+  state.customIngredients = storedCustom ? JSON.parse(storedCustom) : [];
 
   state.selectedDate = todayStr();
   state.weekOffset   = 0;
@@ -334,10 +346,8 @@ function renderPickerRecipeList() {
 
 function renderIngredientPickerForm() {
   const select = document.getElementById('picker-ing-select');
-  if (select.children.length <= 1) {
-    select.innerHTML = '<option value="">— scegli ingrediente —</option>'
-      + INGREDIENTS.map(i => `<option value="${i.id}">${i.name}</option>`).join('');
-  }
+  select.innerHTML = '<option value="">— scegli ingrediente —</option>'
+    + allIngredients().map(i => `<option value="${i.id}">${i.name}${i.custom ? ' ★' : ''}</option>`).join('');
   document.getElementById('picker-ing-grams').value = '';
   document.getElementById('picker-ing-preview').innerHTML = '';
 }
@@ -348,7 +358,7 @@ function updateIngredientPickerPreview() {
   const preview = document.getElementById('picker-ing-preview');
 
   if (!ingId || !grams) { preview.innerHTML = ''; return; }
-  const ing = INGREDIENTS.find(i => i.id === ingId);
+  const ing = allIngredients().find(i => i.id === ingId);
   if (!ing) return;
   const f = grams / 100;
   const m = { cal: ing.cal * f, prot: ing.prot * f, carb: ing.carb * f, fat: ing.fat * f };
@@ -437,7 +447,7 @@ function addIngredientRow() {
 
   const select = document.createElement('select');
   select.innerHTML = '<option value="">— ingrediente —</option>'
-    + INGREDIENTS.map(i => `<option value="${i.id}">${i.name}</option>`).join('');
+    + allIngredients().map(i => `<option value="${i.id}">${i.name}${i.custom ? ' ★' : ''}</option>`).join('');
   select.addEventListener('change', updateBuilderPreview);
 
   const input = document.createElement('input');
@@ -540,8 +550,8 @@ function renderPrep() {
   }
 
   const sortedIng = Object.entries(ingTotals).sort(([a], [b]) => {
-    const ia = INGREDIENTS.find(i => i.id === a);
-    const ib = INGREDIENTS.find(i => i.id === b);
+    const ia = allIngredients().find(i => i.id === a);
+    const ib = allIngredients().find(i => i.id === b);
     if (!ia || !ib) return 0;
     return ia.category !== ib.category
       ? ia.category.localeCompare(ib.category)
@@ -551,7 +561,7 @@ function renderPrep() {
   html += '<p class="prep-section-title">LISTA SPESA</p>';
   html += '<table class="prep-table"><thead><tr><th>INGREDIENTE</th><th>CATEGORIA</th><th>QUANTITÀ</th></tr></thead><tbody>';
   sortedIng.forEach(([ingId, totalGrams]) => {
-    const ing = INGREDIENTS.find(i => i.id === ingId);
+    const ing = allIngredients().find(i => i.id === ingId);
     if (!ing) return;
     const display = totalGrams >= 1000
       ? `${(totalGrams / 1000).toFixed(2).replace('.', ',')} kg`
@@ -566,24 +576,71 @@ function renderPrep() {
 /* ── RENDER: INGREDIENTI ─────────────────────────────────────────────────────── */
 function renderIngredients() {
   const container  = document.getElementById('ingredients-table');
-  const categories = ['proteine', 'carboidrati', 'grassi', 'verdure', 'frutta'];
+  const all        = allIngredients();
+  const categories = ['proteine', 'carboidrati', 'grassi', 'verdure', 'frutta', 'altro'];
 
   let html = '<table class="ing-table"><thead><tr>'
-    + '<th>NOME</th><th>CATEGORIA</th><th>KCAL</th><th>PROT g</th><th>CARB g</th><th>GRAS g</th>'
+    + '<th>NOME</th><th>CATEGORIA</th><th>KCAL</th><th>PROT g</th><th>CARB g</th><th>GRAS g</th><th></th>'
     + '</tr></thead><tbody>';
 
   categories.forEach(cat => {
-    html += `<tr class="ing-category-row"><td colspan="6">${cat.toUpperCase()}</td></tr>`;
-    INGREDIENTS.filter(i => i.category === cat).forEach(ing => {
+    const items = all.filter(i => i.category === cat);
+    if (items.length === 0) return;
+    html += `<tr class="ing-category-row"><td colspan="7">${cat.toUpperCase()}</td></tr>`;
+    items.forEach(ing => {
+      const isCustom = !!ing.custom;
+      const badge    = isCustom ? '<span class="ing-custom-badge">CUSTOM</span>' : '';
+      const del      = isCustom
+        ? `<button class="ing-delete-btn" data-id="${ing.id}" title="Elimina">✕</button>`
+        : '';
       html += `<tr>
-        <td>${ing.name}</td>
+        <td>${ing.name}${badge}</td>
         <td style="color:var(--muted)">${ing.category}</td>
         <td>${ing.cal}</td><td>${ing.prot}</td><td>${ing.carb}</td><td>${ing.fat}</td>
+        <td>${del}</td>
       </tr>`;
     });
   });
 
   container.innerHTML = html + '</tbody></table>';
+
+  container.querySelectorAll('.ing-delete-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.customIngredients = state.customIngredients.filter(i => i.id !== btn.dataset.id);
+      saveState();
+      renderIngredients();
+    });
+  });
+}
+
+/* ── INGREDIENT BUILDER MODAL ────────────────────────────────────────────────── */
+function openIngredientBuilder() {
+  ['ing-name-input','ing-cal','ing-prot','ing-carb','ing-fat'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('ing-category-input').value = 'proteine';
+  document.getElementById('ingredient-builder-modal').classList.remove('hidden');
+}
+
+function closeIngredientBuilder() {
+  document.getElementById('ingredient-builder-modal').classList.add('hidden');
+}
+
+function saveCustomIngredient() {
+  const name     = document.getElementById('ing-name-input').value.trim();
+  const category = document.getElementById('ing-category-input').value;
+  const cal      = parseFloat(document.getElementById('ing-cal').value)  || 0;
+  const prot     = parseFloat(document.getElementById('ing-prot').value) || 0;
+  const carb     = parseFloat(document.getElementById('ing-carb').value) || 0;
+  const fat      = parseFloat(document.getElementById('ing-fat').value)  || 0;
+
+  if (!name) { document.getElementById('ing-name-input').focus(); return; }
+
+  const id = 'custom_' + uid();
+  state.customIngredients.push({ id, name, category, cal, prot, carb, fat, custom: true });
+  saveState();
+  renderIngredients();
+  closeIngredientBuilder();
 }
 
 /* ── NAVIGATION ──────────────────────────────────────────────────────────────── */
@@ -656,6 +713,14 @@ function init() {
   });
   document.getElementById('add-ingredient-row-btn').addEventListener('click', addIngredientRow);
   document.getElementById('save-recipe-btn').addEventListener('click', saveNewRecipe);
+
+  // Ingredient builder
+  document.getElementById('new-ingredient-btn').addEventListener('click', openIngredientBuilder);
+  document.getElementById('ing-builder-close').addEventListener('click', closeIngredientBuilder);
+  document.getElementById('ingredient-builder-modal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeIngredientBuilder();
+  });
+  document.getElementById('save-ingredient-btn').addEventListener('click', saveCustomIngredient);
 
   // Prep days
   document.getElementById('prep-days').addEventListener('input', renderPrep);

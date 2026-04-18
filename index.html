@@ -102,6 +102,7 @@
       <div class="section-header">
         <span class="section-title">DATABASE INGREDIENTI</span>
         <span class="section-note">valori per 100g</span>
+        <button class="primary-btn" id="new-ingredient-btn" style="margin-left:auto">+ AGGIUNGI INGREDIENTE</button>
       </div>
       <div id="ingredients-table"></div>
     </section>
@@ -169,6 +170,53 @@
           <div class="builder-preview-stat"><div class="builder-preview-val">0</div><div class="builder-preview-label">GRAS</div></div>
         </div>
         <button class="primary-btn" id="save-recipe-btn">SALVA RICETTA</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Nuovo Ingrediente -->
+  <div class="modal-overlay hidden" id="ingredient-builder-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">NUOVO INGREDIENTE</span>
+        <button class="modal-close" id="ing-builder-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div>
+          <label class="field-label" for="ing-name-input">NOME</label>
+          <input type="text" id="ing-name-input" class="mono-input full-width" placeholder="es. Skyr">
+        </div>
+        <div>
+          <label class="field-label">CATEGORIA</label>
+          <select id="ing-category-input" class="mono-input" style="width:100%">
+            <option value="proteine">Proteine</option>
+            <option value="carboidrati">Carboidrati</option>
+            <option value="grassi">Grassi</option>
+            <option value="verdure">Verdure</option>
+            <option value="frutta">Frutta</option>
+            <option value="altro">Altro</option>
+          </select>
+        </div>
+        <p class="field-label" style="margin-bottom:0">MACRO PER 100g</p>
+        <div class="ing-macro-grid">
+          <div>
+            <label class="field-label" for="ing-cal">KCAL</label>
+            <input type="number" id="ing-cal" class="mono-input full-width" placeholder="0" min="0">
+          </div>
+          <div>
+            <label class="field-label" for="ing-prot">PROTEINE g</label>
+            <input type="number" id="ing-prot" class="mono-input full-width" placeholder="0" min="0" step="0.1">
+          </div>
+          <div>
+            <label class="field-label" for="ing-carb">CARBOIDRATI g</label>
+            <input type="number" id="ing-carb" class="mono-input full-width" placeholder="0" min="0" step="0.1">
+          </div>
+          <div>
+            <label class="field-label" for="ing-fat">GRASSI g</label>
+            <input type="number" id="ing-fat" class="mono-input full-width" placeholder="0" min="0" step="0.1">
+          </div>
+        </div>
+        <button class="primary-btn" id="save-ingredient-btn">SALVA INGREDIENTE</button>
       </div>
     </div>
   </div>
