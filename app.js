@@ -13,13 +13,15 @@ const DAY_NAMES  = ['DOM', 'LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB'];
 
 /* ── STATE ───────────────────────────────────────────────────────────────────── */
 const state = {
-  recipes:          [],
-  plans:            {},   // { 'YYYY-MM-DD': { colazione:[], pranzo:[], cena:[], snack:[], garmin:0 } }
-  customIngredients: [],  // ingredienti aggiunti dall'utente
-  selectedDate:     '',
-  pickerTargetMeal: null,
-  pickerMode:       'ricette',
-  weekOffset:       0,    // 0 = current week, -1 = last week, +1 = next week
+  recipes:           [],
+  plans:             {},   // { 'YYYY-MM-DD': { colazione:[], pranzo:[], cena:[], snack:[], garmin:0 } }
+  customIngredients: [],
+  selectedDate:      '',
+  pickerTargetMeal:  null,
+  pickerTargetDate:  null,
+  pickerMode:        'ricette',
+  weekOffset:        0,
+  pianoView:         'giorno', // 'giorno' | 'settimana'
 };
 
 /* ── DATE HELPERS ────────────────────────────────────────────────────────────── */
@@ -205,7 +207,8 @@ function renderWeekStrip() {
     btn.addEventListener('click', () => {
       state.selectedDate = btn.dataset.date;
       renderWeekStrip();
-      renderPiano();
+      if (state.pianoView === 'giorno') renderPiano();
+      else renderWeekOverview();
     });
   });
 }
@@ -287,8 +290,9 @@ function renderMacroBars() {
 }
 
 /* ── PICKER MODAL ────────────────────────────────────────────────────────────── */
-function openRecipePicker(meal) {
+function openRecipePicker(meal, dateStr = state.selectedDate) {
   state.pickerTargetMeal = meal;
+  state.pickerTargetDate = dateStr;
   state.pickerMode = 'ricette';
   switchPickerMode('ricette');
   document.getElementById('recipe-picker-modal').classList.remove('hidden');
@@ -336,10 +340,10 @@ function renderPickerRecipeList() {
 
   list.querySelectorAll('.picker-recipe-item').forEach(item => {
     item.addEventListener('click', () => {
-      currentPlan()[state.pickerTargetMeal].push(item.dataset.id);
+      ensurePlan(state.pickerTargetDate)[state.pickerTargetMeal].push(item.dataset.id);
       saveState();
-      renderMacroBars();
-      renderMealSlots();
+      if (state.pianoView === 'giorno') { renderMacroBars(); renderMealSlots(); }
+      else renderWeekOverview();
       renderWeekStrip();
       closeRecipePicker();
     });
@@ -377,10 +381,10 @@ function confirmIngredientPicker() {
   const grams = parseFloat(document.getElementById('picker-ing-grams').value) || 0;
   if (!ingId || !grams) return;
 
-  currentPlan()[state.pickerTargetMeal].push({ type: 'ingredient', ingredientId: ingId, grams });
+  ensurePlan(state.pickerTargetDate)[state.pickerTargetMeal].push({ type: 'ingredient', ingredientId: ingId, grams });
   saveState();
-  renderMacroBars();
-  renderMealSlots();
+  if (state.pianoView === 'giorno') { renderMacroBars(); renderMealSlots(); }
+  else renderWeekOverview();
   renderWeekStrip();
   closeRecipePicker();
 }
@@ -575,6 +579,96 @@ function renderPrep() {
   container.innerHTML = html;
 }
 
+/* ── RENDER: WEEK OVERVIEW ───────────────────────────────────────────────────── */
+function renderWeekOverview() {
+  const today   = todayStr();
+  const days    = getWeekDays(today, state.weekOffset);
+  const container = document.getElementById('week-overview');
+
+  container.innerHTML = days.map(dateStr => {
+    const plan    = state.plans[dateStr] || {};
+    const macros  = calcPlanMacros(dateStr);
+    const calTgt  = effectiveCalTarget(dateStr);
+    const pct     = calTgt > 0 ? Math.min(macros.cal / calTgt, 1) : 0;
+    const cls     = barClass(macros.cal / calTgt);
+    const isToday    = dateStr === today;
+    const isSelected = dateStr === state.selectedDate;
+
+    const mealsHtml = MEALS.map(meal => {
+      const entries = plan[meal] || [];
+      const chipsHtml = entries.map((entry, idx) => {
+        const label = getEntryLabel(entry);
+        return `<div class="wov-chip">
+          <span class="wov-chip-name" title="${label}">${label}</span>
+          <button class="wov-chip-remove" data-date="${dateStr}" data-meal="${meal}" data-idx="${idx}">✕</button>
+        </div>`;
+      }).join('');
+
+      return `<div class="wov-meal">
+        <span class="wov-meal-label">${CAT_LABELS[meal]}</span>
+        <div class="wov-chips">${chipsHtml}</div>
+        <button class="wov-add-btn" data-date="${dateStr}" data-meal="${meal}">+</button>
+      </div>`;
+    }).join('');
+
+    return `<div class="wov-col ${isToday ? 'is-today' : ''} ${isSelected ? 'is-selected' : ''}" data-date="${dateStr}">
+      <div class="wov-header" data-date="${dateStr}">
+        <span class="wov-day-name">${dayName(dateStr)}</span>
+        <span class="wov-day-num">${dayNumber(dateStr)}</span>
+        <div class="wov-cal-bar">
+          <div class="wov-cal-fill ${cls}" style="width:${Math.round(pct * 100)}%"></div>
+        </div>
+      </div>
+      <div class="wov-meals">${mealsHtml}</div>
+    </div>`;
+  }).join('');
+
+  // Header click → switch to day view on that date
+  container.querySelectorAll('.wov-header').forEach(el => {
+    el.addEventListener('click', () => {
+      state.selectedDate = el.dataset.date;
+      switchPianoView('giorno');
+    });
+  });
+
+  // Add button → open picker for that day+meal
+  container.querySelectorAll('.wov-add-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      openRecipePicker(btn.dataset.meal, btn.dataset.date);
+    });
+  });
+
+  // Remove chip
+  container.querySelectorAll('.wov-chip-remove').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const { date, meal, idx } = btn.dataset;
+      ensurePlan(date)[meal].splice(parseInt(idx, 10), 1);
+      saveState();
+      renderWeekOverview();
+      renderWeekStrip();
+    });
+  });
+}
+
+/* ── VIEW TOGGLE ─────────────────────────────────────────────────────────────── */
+function switchPianoView(view) {
+  state.pianoView = view;
+  document.querySelectorAll('.view-toggle-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.view === view);
+  });
+  document.getElementById('piano-giorno-view').classList.toggle('hidden', view !== 'giorno');
+  document.getElementById('piano-settimana-view').classList.toggle('hidden', view !== 'settimana');
+
+  if (view === 'giorno') {
+    renderPiano();
+    renderWeekStrip();
+  } else {
+    renderWeekOverview();
+  }
+}
+
 /* ── RENDER: INGREDIENTI ─────────────────────────────────────────────────────── */
 function renderIngredients() {
   const container  = document.getElementById('ingredients-table');
@@ -732,6 +826,11 @@ function init() {
   // Tab navigation
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+  });
+
+  // Piano view toggle
+  document.querySelectorAll('.view-toggle-btn').forEach(btn => {
+    btn.addEventListener('click', () => switchPianoView(btn.dataset.view));
   });
 
   // Week navigation

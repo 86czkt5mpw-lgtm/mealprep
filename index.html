@@ -36,13 +36,21 @@
     <!-- TAB: PIANO -->
     <section id="tab-piano" class="tab-content active">
 
-      <!-- Week strip -->
-      <div class="week-nav">
-        <button class="week-arrow" id="week-prev">←</button>
-        <div class="week-strip" id="week-strip"></div>
-        <button class="week-arrow" id="week-next">→</button>
+      <!-- Week strip + view toggle -->
+      <div class="piano-controls">
+        <div class="week-nav">
+          <button class="week-arrow" id="week-prev">←</button>
+          <div class="week-strip" id="week-strip"></div>
+          <button class="week-arrow" id="week-next">→</button>
+        </div>
+        <div class="view-toggle">
+          <button class="view-toggle-btn active" data-view="giorno">GIORNO</button>
+          <button class="view-toggle-btn" data-view="settimana">SETTIMANA</button>
+        </div>
       </div>
 
+      <!-- VISTA GIORNO -->
+      <div id="piano-giorno-view">
       <div class="piano-top">
         <div class="piano-date" id="piano-date"></div>
         <div class="garmin-field">
@@ -86,6 +94,13 @@
           <div class="meal-recipes" id="meal-snack"></div>
         </div>
       </div>
+      </div> <!-- end piano-giorno-view -->
+
+      <!-- VISTA SETTIMANA -->
+      <div id="piano-settimana-view" class="hidden">
+        <div class="week-overview" id="week-overview"></div>
+      </div>
+
     </section>
 
     <!-- TAB: RICETTE -->
