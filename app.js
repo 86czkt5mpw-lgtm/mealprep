@@ -934,31 +934,61 @@ function getAutofillDates() {
   return dates;
 }
 
+function scoreRecipeForSlot(recipe, dayMacros, usageCount) {
+  const m = calcRecipeMacros(recipe);
+  const protDeficit = Math.max(0, TARGETS.prot - dayMacros.prot);
+  const protScore   = protDeficit > 0 ? Math.min(m.prot / protDeficit, 1) * 3 : 0;
+  const fatOver     = Math.max(0, dayMacros.fat + m.fat - TARGETS.fat);
+  const fatPenalty  = (fatOver  / TARGETS.fat)  * 2;
+  const calOver     = Math.max(0, dayMacros.cal + m.cal - TARGETS.cal);
+  const calPenalty  = (calOver  / TARGETS.cal)  * 1.5;
+  const variety     = (usageCount || 0) * 1.5;
+  return protScore - fatPenalty - calPenalty - variety;
+}
+
 function generatePlanJS() {
   const categories = [...state.autofillMeals];
   if (categories.length === 0) { showToast('Seleziona almeno un tipo di pasto'); return; }
 
-  const dates = getAutofillDates();
-
-  const pools = {};
-  const ptrs  = {};
-  AFMEALS.forEach(cat => {
-    pools[cat] = shuffle(state.recipes.filter(r => (r.category || 'snack') === cat));
-    ptrs[cat]  = 0;
-  });
+  const dates    = getAutofillDates();
+  const usageCnt = {};
 
   let filled = 0;
   dates.forEach(dateStr => {
     if (!state.plans[dateStr]) state.plans[dateStr] = { colazione: [], pranzo: [], cena: [], snack: [], garmin: 0 };
-    categories.forEach(cat => {
-      const slots = AFMEAL_SLOTS[cat] || [cat];
-      const pool  = pools[cat];
-      if (!pool || pool.length === 0) return;
-      slots.forEach(slot => {
-        if ((state.plans[dateStr][slot] || []).length > 0) return;
-        state.plans[dateStr][slot] = [pool[ptrs[cat]++ % pool.length].id];
-        filled++;
+
+    // Accumula macro già presenti nel giorno
+    const dayMacros = { cal: 0, prot: 0, carb: 0, fat: 0 };
+    MEALS.forEach(slot => {
+      (state.plans[dateStr][slot] || []).forEach(entry => {
+        const m = getEntryMacros(entry);
+        dayMacros.cal += m.cal; dayMacros.prot += m.prot;
+        dayMacros.carb += m.carb; dayMacros.fat += m.fat;
       });
+    });
+
+    // Riempi in ordine MEALS per accumulare macro correttamente
+    MEALS.forEach(slot => {
+      const cat = AFMEALS.find(c => (AFMEAL_SLOTS[c] || [c]).includes(slot));
+      if (!cat || !categories.includes(cat)) return;
+      if ((state.plans[dateStr][slot] || []).length > 0) return;
+
+      const pool = state.recipes.filter(r => (r.category || 'snack') === cat);
+      if (pool.length === 0) return;
+
+      // Punteggio per ogni ricetta, top-3 con lieve randomizzazione
+      const scored = pool
+        .map(r => ({ r, s: scoreRecipeForSlot(r, dayMacros, usageCnt[r.id]) }))
+        .sort((a, b) => b.s - a.s);
+      const pick = scored[Math.floor(Math.random() * Math.min(3, scored.length))].r;
+
+      state.plans[dateStr][slot] = [pick.id];
+      usageCnt[pick.id] = (usageCnt[pick.id] || 0) + 1;
+
+      const m = calcRecipeMacros(pick);
+      dayMacros.cal += m.cal; dayMacros.prot += m.prot;
+      dayMacros.carb += m.carb; dayMacros.fat += m.fat;
+      filled++;
     });
   });
 
