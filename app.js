@@ -31,6 +31,7 @@ const state = {
   copySource:           null, // { entry, meal, dateStr }
   copyTargetDays:       [],   // dateStr[] selezionati
   prepChecked:          new Set(), // ingredientIds già in casa
+  prepFilterMeals:      new Set(['colazione', 'pranzo', 'cena', 'snack']),
   pendingIngredientRow:   null, // riga ricetta in attesa di nuovo ingrediente
   editingIngredientId:    null, // ID ingrediente in modifica (null = nuovo)
   editingRecipeId:        null, // ID ricetta in modifica (null = nuova)
@@ -925,6 +926,11 @@ function renderPrep() {
   const container = document.getElementById('prep-content');
   const today     = todayStr();
 
+  // Sync filter buttons state
+  document.querySelectorAll('.prep-filter-btn').forEach(btn => {
+    btn.classList.toggle('active', state.prepFilterMeals.has(btn.dataset.meal));
+  });
+
   // Build list of next N days from today
   const dates = [];
   for (let i = 0; i < days; i++) {
@@ -933,7 +939,7 @@ function renderPrep() {
     dates.push(d.toISOString().slice(0, 10));
   }
 
-  // Aggregate across all planned days
+  // Aggregate across all planned days, filtered by selected meal categories
   const ingTotals    = {};
   const recipeCounts = {};
   let   hasAny       = false;
@@ -942,6 +948,7 @@ function renderPrep() {
     const plan = state.plans[dateStr];
     if (!plan) return;
     MEALS.forEach(meal => {
+      if (!state.prepFilterMeals.has(meal)) return;
       (plan[meal] || []).forEach(entry => {
         hasAny = true;
         if (typeof entry === 'string') {
@@ -973,12 +980,19 @@ function renderPrep() {
   // --- Lista cottura ---
   if (Object.keys(recipeCounts).length > 0) {
     html += '<p class="prep-section-title">RICETTE DA CUCINARE</p>';
-    html += '<table class="prep-table"><thead><tr><th>RICETTA</th><th>PORZIONI</th><th>KCAL TOTALI</th></tr></thead><tbody>';
+    html += '<table class="prep-table prep-recipes-table"><thead><tr><th>RICETTA</th><th>PORZ.</th><th>KCAL</th><th>PROT</th><th>CARB</th><th>GRAS</th></tr></thead><tbody>';
     Object.entries(recipeCounts).forEach(([rid, count]) => {
       const recipe = state.recipes.find(r => r.id === rid);
       if (!recipe) return;
       const m = calcRecipeMacros(recipe);
-      html += `<tr><td>${recipe.name}</td><td>${count}×</td><td>${fmt(m.cal * count)}</td></tr>`;
+      html += `<tr>
+        <td>${recipe.name}</td>
+        <td>${count}×</td>
+        <td>${fmt(m.cal * count)}</td>
+        <td class="prep-macro">${fmt(m.prot * count)}g</td>
+        <td class="prep-macro">${fmt(m.carb * count)}g</td>
+        <td class="prep-macro">${fmt(m.fat * count)}g</td>
+      </tr>`;
     });
     html += '</tbody></table>';
   }
@@ -1033,6 +1047,11 @@ function resetPrepSession() {
   state.prepChecked.clear();
   localStorage.setItem(STORAGE.prepChecked, JSON.stringify([]));
   renderPrep();
+  const btn = document.getElementById('prep-reset-btn');
+  const original = btn.textContent;
+  btn.textContent = '✓ RESET';
+  btn.disabled = true;
+  setTimeout(() => { btn.textContent = original; btn.disabled = false; }, 1000);
 }
 
 /* ── RENDER: WEEK OVERVIEW ───────────────────────────────────────────────────── */
@@ -1742,9 +1761,20 @@ function init() {
     }
   });
 
-  // Prep days + reset
+  // Prep days + reset + category filters
   document.getElementById('prep-days').addEventListener('input', renderPrep);
   document.getElementById('prep-reset-btn').addEventListener('click', resetPrepSession);
+  document.querySelectorAll('.prep-filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const meal = btn.dataset.meal;
+      if (state.prepFilterMeals.has(meal)) {
+        if (state.prepFilterMeals.size > 1) state.prepFilterMeals.delete(meal);
+      } else {
+        state.prepFilterMeals.add(meal);
+      }
+      renderPrep();
+    });
+  });
 
   // Initial render
   renderWeekStrip();
