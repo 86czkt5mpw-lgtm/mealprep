@@ -33,6 +33,7 @@ const state = {
   prepChecked:          new Set(), // ingredientIds già in casa
   pendingIngredientRow:   null, // riga ricetta in attesa di nuovo ingrediente
   editingIngredientId:    null, // ID ingrediente in modifica (null = nuovo)
+  editingRecipeId:        null, // ID ricetta in modifica (null = nuova)
 };
 
 /* ── DATE HELPERS ────────────────────────────────────────────────────────────── */
@@ -418,6 +419,7 @@ function renderRecipes() {
     const isProd = recipe.type === 'product';
     return `<div class="recipe-card">
       <div class="cat-badge cat-${cat}"></div>
+      <button class="recipe-card-edit" data-id="${recipe.id}" title="Modifica">✎</button>
       <button class="recipe-card-delete" data-id="${recipe.id}" title="Elimina">✕</button>
       <div class="recipe-card-name">${recipe.name}${isProd ? '<span class="ing-custom-badge prod-badge">PRODOTTO</span>' : ''}</div>
       <div class="recipe-card-category">${CAT_LABELS[cat] || cat}</div>
@@ -429,6 +431,14 @@ function renderRecipes() {
       </div>
     </div>`;
   }).join('');
+
+  grid.querySelectorAll('.recipe-card-edit').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const recipe = state.recipes.find(r => r.id === btn.dataset.id);
+      if (recipe) openRecipeBuilderForEdit(recipe);
+    });
+  });
 
   grid.querySelectorAll('.recipe-card-delete').forEach(btn => {
     btn.addEventListener('click', e => {
@@ -451,6 +461,7 @@ function renderRecipes() {
 
 /* ── RECIPE BUILDER ──────────────────────────────────────────────────────────── */
 function openRecipeBuilder() {
+  state.editingRecipeId = null;
   document.getElementById('recipe-name-input').value = '';
   document.getElementById('recipe-category-input').value = 'snack';
   document.getElementById('builder-ingredients').innerHTML = '';
@@ -461,9 +472,34 @@ function openRecipeBuilder() {
   document.getElementById('product-search-input').value = '';
   document.getElementById('product-search-results').classList.add('hidden');
   document.getElementById('product-search-mode').classList.add('hidden');
+  document.getElementById('recipe-builder-title').textContent = 'NUOVA RICETTA';
+  document.getElementById('save-recipe-btn').textContent = 'SALVA RICETTA';
   updateBuilderPreview();
   addIngredientRow();
   document.getElementById('recipe-builder-modal').classList.remove('hidden');
+}
+
+function openRecipeBuilderForEdit(recipe) {
+  openRecipeBuilder(); // reset completo
+  state.editingRecipeId = recipe.id;
+  document.getElementById('recipe-name-input').value      = recipe.name;
+  document.getElementById('recipe-category-input').value  = recipe.category || 'snack';
+  document.getElementById('recipe-builder-title').textContent = 'MODIFICA RICETTA';
+  document.getElementById('save-recipe-btn').textContent  = 'AGGIORNA RICETTA';
+  document.getElementById('builder-ingredients').innerHTML = '';
+
+  if (recipe.type === 'product') {
+    switchBuilderType('prodotto');
+    document.getElementById('product-cal').value  = recipe.macros.cal;
+    document.getElementById('product-prot').value = recipe.macros.prot;
+    document.getElementById('product-carb').value = recipe.macros.carb;
+    document.getElementById('product-fat').value  = recipe.macros.fat;
+    updateProductPreview();
+  } else {
+    switchBuilderType('ricetta');
+    (recipe.ingredients || []).forEach(item => addIngredientRow(item));
+    updateBuilderPreview();
+  }
 }
 
 function closeRecipeBuilder() {
@@ -562,7 +598,7 @@ async function handleProductSearch(query) {
   }
 }
 
-function addIngredientRow() {
+function addIngredientRow(prefill = null) {
   const container = document.getElementById('builder-ingredients');
   const row = document.createElement('div');
   row.className = 'builder-ingredient-row';
@@ -606,6 +642,13 @@ function addIngredientRow() {
   const removeBtn = document.createElement('button');
   removeBtn.className = 'remove-row-btn'; removeBtn.textContent = '✕'; removeBtn.type = 'button';
   removeBtn.addEventListener('click', () => { row.remove(); updateBuilderPreview(); });
+
+  // Pre-fill se in modalità modifica ricetta
+  if (prefill && prefill.ingredientId) {
+    const ing = allIngredients().find(i => i.id === prefill.ingredientId);
+    if (ing) { row.dataset.ingId = ing.id; acInput.value = ing.name; }
+    gramsInput.value = prefill.grams || '';
+  }
 
   row.append(acWrapper, gramsInput, removeBtn);
   container.appendChild(row);
@@ -674,13 +717,14 @@ function saveNewRecipe() {
 
   const isProduct = document.querySelector('.builder-type-btn[data-type="prodotto"]').classList.contains('active');
 
+  let updated;
   if (isProduct) {
     const cal  = parseFloat(document.getElementById('product-cal').value)  || 0;
     const prot = parseFloat(document.getElementById('product-prot').value) || 0;
     const carb = parseFloat(document.getElementById('product-carb').value) || 0;
     const fat  = parseFloat(document.getElementById('product-fat').value)  || 0;
     if (cal === 0 && prot === 0 && carb === 0 && fat === 0) return;
-    state.recipes.push({ id: uid(), name, category, type: 'product', macros: { cal, prot, carb, fat } });
+    updated = { name, category, type: 'product', macros: { cal, prot, carb, fat } };
   } else {
     const ingredients = [];
     document.querySelectorAll('.builder-ingredient-row').forEach(row => {
@@ -689,7 +733,15 @@ function saveNewRecipe() {
       if (ingId && grams > 0) ingredients.push({ ingredientId: ingId, grams });
     });
     if (ingredients.length === 0) return;
-    state.recipes.push({ id: uid(), name, category, ingredients });
+    updated = { name, category, ingredients };
+  }
+
+  if (state.editingRecipeId) {
+    const idx = state.recipes.findIndex(r => r.id === state.editingRecipeId);
+    if (idx >= 0) state.recipes[idx] = { ...state.recipes[idx], ...updated };
+    state.editingRecipeId = null;
+  } else {
+    state.recipes.push({ id: uid(), ...updated });
   }
 
   saveState();
