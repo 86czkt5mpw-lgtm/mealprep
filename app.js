@@ -532,7 +532,7 @@ function confirmIngredientPicker() {
 const CAT_COLORS = { colazione: 'var(--yellow)', pranzo: 'var(--green)', cena: 'var(--accent)', snack: 'var(--purple)' };
 let recipeSortKey = 'name';
 let recipeSortAsc = true;
-let recipeView    = 'tiles'; // 'tiles' | 'list'
+let recipeView    = 'list';
 
 function deleteRecipe(id) {
   state.recipes = state.recipes.filter(r => r.id !== id);
@@ -609,26 +609,6 @@ function renderRecipes() {
         renderRecipes();
       });
     });
-  } else {
-    grid.className = 'recipe-grid';
-    grid.innerHTML = sorted.map(recipe => {
-      const m      = calcRecipeMacros(recipe);
-      const cat    = recipe.category || 'snack';
-      const isProd = recipe.type === 'product';
-      return `<div class="recipe-card">
-        <div class="cat-badge cat-${cat}"></div>
-        <button class="recipe-card-edit" data-id="${recipe.id}" title="Modifica">✎</button>
-        <button class="recipe-card-delete" data-id="${recipe.id}" title="Elimina">✕</button>
-        <div class="recipe-card-name">${recipe.name}${isProd ? '<span class="ing-custom-badge prod-badge">PRODOTTO</span>' : ''}</div>
-        <div class="recipe-card-category">${CAT_LABELS[cat] || cat}</div>
-        <div class="recipe-card-macros">
-          <div class="recipe-macro"><div class="recipe-macro-val">${fmt(m.cal)}</div><div class="recipe-macro-label">KCAL</div></div>
-          <div class="recipe-macro"><div class="recipe-macro-val">${fmt(m.prot)}</div><div class="recipe-macro-label">PROT</div></div>
-          <div class="recipe-macro"><div class="recipe-macro-val">${fmt(m.carb)}</div><div class="recipe-macro-label">CARB</div></div>
-          <div class="recipe-macro"><div class="recipe-macro-val">${fmt(m.fat)}</div><div class="recipe-macro-label">GRAS</div></div>
-        </div>
-      </div>`;
-    }).join('');
   }
 
   grid.querySelectorAll('.recipe-card-edit, .edit-btn').forEach(btn => {
@@ -1739,18 +1719,7 @@ function init() {
     document.getElementById('suggestions-panel').classList.add('hidden');
   });
 
-  document.getElementById('view-tiles-btn').addEventListener('click', () => {
-    recipeView = 'tiles';
-    document.getElementById('view-tiles-btn').classList.add('active');
-    document.getElementById('view-list-btn').classList.remove('active');
-    renderRecipes();
-  });
-  document.getElementById('view-list-btn').addEventListener('click', () => {
-    recipeView = 'list';
-    document.getElementById('view-list-btn').classList.add('active');
-    document.getElementById('view-tiles-btn').classList.remove('active');
-    renderRecipes();
-  });
+
 
   document.getElementById('builder-close').addEventListener('click', closeRecipeBuilder);
   document.getElementById('recipe-builder-modal').addEventListener('click', e => {
