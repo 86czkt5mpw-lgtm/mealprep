@@ -1002,6 +1002,16 @@ body {
   vertical-align: middle;
   opacity: 0.8;
 }
+.ing-edit-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 6px;
+  transition: color 0.15s;
+}
+.ing-edit-btn:hover { color: var(--text); }
 .ing-delete-btn {
   background: none;
   border: none;

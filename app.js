@@ -31,7 +31,8 @@ const state = {
   copySource:           null, // { entry, meal, dateStr }
   copyTargetDays:       [],   // dateStr[] selezionati
   prepChecked:          new Set(), // ingredientIds già in casa
-  pendingIngredientRow: null, // riga ricetta in attesa di nuovo ingrediente
+  pendingIngredientRow:   null, // riga ricetta in attesa di nuovo ingrediente
+  editingIngredientId:    null, // ID ingrediente in modifica (null = nuovo)
 };
 
 /* ── DATE HELPERS ────────────────────────────────────────────────────────────── */
@@ -108,9 +109,10 @@ function getEntryLabel(entry) {
 }
 
 /* ── INGREDIENTS MERGE ───────────────────────────────────────────────────────── */
-// Returns base + custom ingredients merged. Custom entries have custom:true.
+// Custom entries override defaults with the same ID (edited defaults).
 function allIngredients() {
-  return [...INGREDIENTS, ...state.customIngredients];
+  const customIds = new Set(state.customIngredients.map(i => i.id));
+  return [...INGREDIENTS.filter(i => !customIds.has(i.id)), ...state.customIngredients];
 }
 
 /* ── MACRO UTILS ─────────────────────────────────────────────────────────────── */
@@ -993,21 +995,32 @@ function renderIngredients() {
     if (items.length === 0) return;
     html += `<tr class="ing-category-row"><td colspan="7">${cat.toUpperCase()}</td></tr>`;
     items.forEach(ing => {
-      const isCustom = !!ing.custom;
-      const badge    = isCustom ? '<span class="ing-custom-badge">CUSTOM</span>' : '';
-      const del      = isCustom
+      const isCustom   = !!ing.custom;
+      const isOverride = isCustom && INGREDIENTS.some(d => d.id === ing.id);
+      const badge = isOverride
+        ? '<span class="ing-custom-badge">MODIFICATO</span>'
+        : isCustom ? '<span class="ing-custom-badge">CUSTOM</span>' : '';
+      const editBtn = `<button class="ing-edit-btn" data-id="${ing.id}" title="Modifica">✎</button>`;
+      const delBtn  = isCustom
         ? `<button class="ing-delete-btn" data-id="${ing.id}" title="Elimina">✕</button>`
         : '';
       html += `<tr>
         <td>${ing.name}${badge}</td>
         <td style="color:var(--muted)">${ing.category}</td>
         <td>${ing.cal}</td><td>${ing.prot}</td><td>${ing.carb}</td><td>${ing.fat}</td>
-        <td>${del}</td>
+        <td style="white-space:nowrap">${editBtn}${delBtn}</td>
       </tr>`;
     });
   });
 
   container.innerHTML = html + '</tbody></table>';
+
+  container.querySelectorAll('.ing-edit-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const ing = allIngredients().find(i => i.id === btn.dataset.id);
+      if (ing) openIngredientBuilderForEdit(ing);
+    });
+  });
 
   container.querySelectorAll('.ing-delete-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -1201,13 +1214,33 @@ async function handleIngredientSearch(query) {
 
 /* ── INGREDIENT BUILDER MODAL ────────────────────────────────────────────────── */
 function openIngredientBuilder() {
+  state.editingIngredientId = null;
   ['ing-search-input','ing-name-input','ing-cal','ing-prot','ing-carb','ing-fat'].forEach(id => {
     document.getElementById(id).value = '';
   });
   document.getElementById('ing-category-input').value = 'proteine';
   document.getElementById('ing-search-results').classList.add('hidden');
   document.getElementById('ing-search-mode').classList.add('hidden');
+  document.getElementById('ing-builder-title').textContent = 'NUOVO INGREDIENTE';
+  document.getElementById('save-ingredient-btn').textContent = 'SALVA INGREDIENTE';
+  document.getElementById('reset-ingredient-override-btn').classList.add('hidden');
   document.getElementById('ingredient-builder-modal').classList.remove('hidden');
+}
+
+function openIngredientBuilderForEdit(ing) {
+  openIngredientBuilder();
+  state.editingIngredientId = ing.id;
+  document.getElementById('ing-name-input').value     = ing.name;
+  document.getElementById('ing-category-input').value = ing.category;
+  document.getElementById('ing-cal').value            = ing.cal;
+  document.getElementById('ing-prot').value           = ing.prot;
+  document.getElementById('ing-carb').value           = ing.carb;
+  document.getElementById('ing-fat').value            = ing.fat;
+  document.getElementById('ing-builder-title').textContent = 'MODIFICA INGREDIENTE';
+  document.getElementById('save-ingredient-btn').textContent = 'AGGIORNA INGREDIENTE';
+  // Show reset button only if it's an override of a default
+  const isOverride = INGREDIENTS.some(d => d.id === ing.id);
+  document.getElementById('reset-ingredient-override-btn').classList.toggle('hidden', !isOverride);
 }
 
 function closeIngredientBuilder() {
@@ -1224,21 +1257,31 @@ function saveCustomIngredient() {
 
   if (!name) { document.getElementById('ing-name-input').focus(); return; }
 
-  const id = 'custom_' + uid();
-  state.customIngredients.push({ id, name, category, cal, prot, carb, fat, custom: true });
-  saveState();
-  renderIngredients();
+  if (state.editingIngredientId) {
+    // Modifica ingrediente esistente (custom o override di default)
+    const id      = state.editingIngredientId;
+    const updated = { id, name, category, cal, prot, carb, fat, custom: true };
+    const idx     = state.customIngredients.findIndex(i => i.id === id);
+    if (idx >= 0) state.customIngredients[idx] = updated;
+    else          state.customIngredients.push(updated); // override di default
+    state.editingIngredientId = null;
+  } else {
+    const id = 'custom_' + uid();
+    state.customIngredients.push({ id, name, category, cal, prot, carb, fat, custom: true });
 
-  // Se siamo arrivati qui dal recipe builder, auto-seleziona la riga in attesa
-  if (state.pendingIngredientRow) {
-    const row = state.pendingIngredientRow;
-    row.dataset.ingId = id;
-    const acInput = row.querySelector('.builder-ac-input');
-    if (acInput) acInput.value = name;
-    state.pendingIngredientRow = null;
-    updateBuilderPreview();
+    // Se siamo arrivati qui dal recipe builder, auto-seleziona la riga in attesa
+    if (state.pendingIngredientRow) {
+      const row = state.pendingIngredientRow;
+      row.dataset.ingId = id;
+      const acInput = row.querySelector('.builder-ac-input');
+      if (acInput) acInput.value = name;
+      state.pendingIngredientRow = null;
+      updateBuilderPreview();
+    }
   }
 
+  saveState();
+  renderIngredients();
   closeIngredientBuilder();
 }
 
@@ -1431,6 +1474,15 @@ function init() {
     if (e.target === e.currentTarget) closeIngredientBuilder();
   });
   document.getElementById('save-ingredient-btn').addEventListener('click', saveCustomIngredient);
+  document.getElementById('reset-ingredient-override-btn').addEventListener('click', () => {
+    const id = state.editingIngredientId;
+    if (!id) return;
+    state.customIngredients = state.customIngredients.filter(i => i.id !== id);
+    state.editingIngredientId = null;
+    saveState();
+    renderIngredients();
+    closeIngredientBuilder();
+  });
 
   // Ingredient search
   document.getElementById('ing-search-input').addEventListener('input', e => {
