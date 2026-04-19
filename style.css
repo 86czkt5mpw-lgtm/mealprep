@@ -740,34 +740,81 @@ body {
 }
 
 /* ── PREP TAB ──────────────────────────────────────────────────────────────── */
-.prep-filter-group {
+/* ── AUTO PIANO BAR ────────────────────────────────────────────────────────── */
+.autofill-bar {
   display: flex;
-  gap: 6px;
-  margin-left: auto;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 0 18px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 24px;
+  flex-wrap: wrap;
 }
-.prep-filter-btn {
+.autofill-label {
+  font-size: 11px;
+  letter-spacing: 2.5px;
+  color: var(--muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.autofill-meals {
+  display: flex;
+  gap: 2px;
+}
+.afm-btn {
   background: none;
-  border: 1px solid var(--border);
+  border: none;
   color: var(--muted);
   font-family: var(--font);
   font-size: 11px;
   letter-spacing: 1.5px;
-  padding: 6px 12px;
+  padding: 4px 10px;
+  cursor: pointer;
+  position: relative;
+  transition: color 0.15s;
+}
+.afm-btn.active { color: var(--accent); }
+.afm-btn.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 10px;
+  right: 10px;
+  height: 1px;
+  background: var(--accent);
+}
+.afm-btn:hover:not(.active) { color: var(--text); }
+.autofill-days-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.autofill-days-wrap .field-label { margin-bottom: 0; }
+.autofill-days-wrap .mono-input { width: 56px; text-align: center; }
+.ai-btn {
+  background: var(--accent);
+  border: none;
+  color: #fff;
+  font-family: var(--font);
+  font-size: 12px;
+  letter-spacing: 2px;
+  padding: 8px 16px;
   cursor: pointer;
   border-radius: var(--radius);
-  transition: all 0.15s;
+  font-weight: 600;
+  transition: opacity 0.15s;
+  opacity: 0.85;
 }
-.prep-filter-btn.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
-}
-.prep-filter-btn:hover:not(.active) { border-color: var(--text); color: var(--text); }
+.ai-btn:hover { opacity: 1; }
+.ai-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
+/* ── PREP TABLE ────────────────────────────────────────────────────────────── */
 .prep-days-control {
   display: flex;
   align-items: center;
   gap: 10px;
+  margin-left: auto;
 }
 .prep-days-control .field-label { margin-bottom: 0; }
 .prep-days-control .mono-input  { width: 64px; text-align: center; }
@@ -775,6 +822,36 @@ body {
 .prep-recipes-table td:nth-child(n+3),
 .prep-recipes-table th:nth-child(n+3) { text-align: right; }
 .prep-macro { color: var(--muted); }
+
+/* ── TOAST ─────────────────────────────────────────────────────────────────── */
+.toast {
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%) translateY(12px);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 13px;
+  letter-spacing: 1px;
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  opacity: 0;
+  transition: opacity 0.2s, transform 0.2s;
+  pointer-events: none;
+  z-index: 500;
+  white-space: nowrap;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ── API KEY MODAL ─────────────────────────────────────────────────────────── */
+.api-key-desc {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
 
 .prep-section-title {
   font-size: 11px;

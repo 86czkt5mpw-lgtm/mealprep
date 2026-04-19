@@ -49,6 +49,23 @@
         </div>
       </div>
 
+      <!-- Auto Piano bar -->
+      <div class="autofill-bar">
+        <span class="autofill-label">AUTO PIANO</span>
+        <div class="autofill-meals">
+          <button class="afm-btn active" data-meal="colazione">COLAZIONE</button>
+          <button class="afm-btn active" data-meal="pranzo">PRANZO</button>
+          <button class="afm-btn active" data-meal="cena">CENA</button>
+          <button class="afm-btn active" data-meal="snack">SNACK</button>
+        </div>
+        <div class="autofill-days-wrap">
+          <label class="field-label" for="autofill-days">GIORNI</label>
+          <input type="number" id="autofill-days" class="mono-input" value="5" min="1" max="14">
+        </div>
+        <button class="secondary-btn" id="autofill-js-btn">GENERA PIANO</button>
+        <button class="ai-btn" id="autofill-ai-btn">✦ AI PLAN</button>
+      </div>
+
       <!-- VISTA GIORNO -->
       <div id="piano-giorno-view">
       <div class="piano-top">
@@ -131,17 +148,10 @@
     <section id="tab-prep" class="tab-content">
       <div class="section-header">
         <span class="section-title">SESSIONE PREP</span>
-        <div class="prep-filter-group">
-          <button class="prep-filter-btn active" data-meal="colazione">COLAZIONE</button>
-          <button class="prep-filter-btn active" data-meal="pranzo">PRANZO</button>
-          <button class="prep-filter-btn active" data-meal="cena">CENA</button>
-          <button class="prep-filter-btn active" data-meal="snack">SNACK</button>
-        </div>
         <div class="prep-days-control">
           <label class="field-label" for="prep-days">GIORNI DA COPRIRE</label>
           <input type="number" id="prep-days" class="mono-input" value="5" min="1" max="14">
         </div>
-        <button class="secondary-btn" id="prep-reset-btn">RESET SESSIONE</button>
       </div>
       <div id="prep-content"></div>
     </section>
@@ -330,6 +340,25 @@
       </div>
     </div>
   </div>
+
+  <!-- MODAL: API Key Anthropic -->
+  <div class="modal-overlay hidden" id="api-key-modal">
+    <div class="modal modal-narrow">
+      <div class="modal-header">
+        <span class="modal-title">ANTHROPIC API KEY</span>
+        <button class="modal-close" id="api-key-modal-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="api-key-desc">Necessaria per generare piani con AI.<br>~€0.01 per generazione. Ottienila su <strong>console.anthropic.com</strong></p>
+        <label class="field-label">API KEY</label>
+        <input type="password" id="api-key-input" class="mono-input full-width" placeholder="sk-ant-...">
+        <button class="primary-btn" id="api-key-save-btn" style="margin-top:16px">SALVA E GENERA</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
 
   <script src="data/ingredients.js"></script>
   <script src="data/recipes.js"></script>

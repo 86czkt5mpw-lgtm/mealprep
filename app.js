@@ -31,7 +31,7 @@ const state = {
   copySource:           null, // { entry, meal, dateStr }
   copyTargetDays:       [],   // dateStr[] selezionati
   prepChecked:          new Set(), // ingredientIds già in casa
-  prepFilterMeals:      new Set(['colazione', 'pranzo', 'cena', 'snack']),
+  autofillMeals:        new Set(['colazione', 'pranzo', 'cena', 'snack']),
   pendingIngredientRow:   null, // riga ricetta in attesa di nuovo ingrediente
   editingIngredientId:    null, // ID ingrediente in modifica (null = nuovo)
   editingRecipeId:        null, // ID ricetta in modifica (null = nuova)
@@ -163,6 +163,23 @@ function barClass(pct) {
 }
 
 /* ── STORAGE ─────────────────────────────────────────────────────────────────── */
+/* ── UTILS ───────────────────────────────────────────────────────────────────── */
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(el._timer);
+  el._timer = setTimeout(() => el.classList.remove('show'), 2500);
+}
+
 function saveState() {
   localStorage.setItem(STORAGE.recipes,    JSON.stringify(state.recipes));
   localStorage.setItem(STORAGE.plans,      JSON.stringify(state.plans));
@@ -920,18 +937,139 @@ function saveNewRecipe() {
   closeRecipeBuilder();
 }
 
+/* ── AUTO PIANO ──────────────────────────────────────────────────────────────── */
+function getAutofillDates() {
+  const days = parseInt(document.getElementById('autofill-days').value, 10) || 5;
+  const today = todayStr();
+  const dates = [];
+  for (let i = 0; i < days; i++) {
+    const d = new Date(today + 'T12:00:00');
+    d.setDate(d.getDate() + i);
+    dates.push(d.toISOString().slice(0, 10));
+  }
+  return dates;
+}
+
+function generatePlanJS() {
+  const meals = [...state.autofillMeals];
+  if (meals.length === 0) { showToast('Seleziona almeno un tipo di pasto'); return; }
+
+  const dates = getAutofillDates();
+
+  const pools = {};
+  MEALS.forEach(meal => {
+    pools[meal] = shuffle(state.recipes.filter(r => (r.category || 'snack') === meal));
+  });
+  const ptrs = { colazione: 0, pranzo: 0, cena: 0, snack: 0 };
+
+  let filled = 0;
+  dates.forEach(dateStr => {
+    if (!state.plans[dateStr]) state.plans[dateStr] = { colazione: [], pranzo: [], cena: [], snack: [], garmin: 0 };
+    meals.forEach(meal => {
+      const pool = pools[meal];
+      if (!pool || pool.length === 0) return;
+      if ((state.plans[dateStr][meal] || []).length > 0) return;
+      state.plans[dateStr][meal] = [pool[ptrs[meal]++ % pool.length].id];
+      filled++;
+    });
+  });
+
+  if (filled === 0) { showToast('Tutti gli slot selezionati sono già occupati'); return; }
+  saveState();
+  renderWeekStrip();
+  renderPiano();
+  showToast(`${filled} pasti generati`);
+}
+
+async function generatePlanAI() {
+  const apiKey = localStorage.getItem('mealprep_anthropic_key');
+  if (!apiKey) { openApiKeyModal(); return; }
+
+  const meals = [...state.autofillMeals];
+  if (meals.length === 0) { showToast('Seleziona almeno un tipo di pasto'); return; }
+
+  const dates = getAutofillDates();
+
+  const recipeList = state.recipes
+    .filter(r => meals.includes(r.category || 'snack'))
+    .map(r => { const m = calcRecipeMacros(r); return { id: r.id, name: r.name, category: r.category || 'snack', cal: Math.round(m.cal), prot: Math.round(m.prot), carb: Math.round(m.carb), fat: Math.round(m.fat) }; });
+
+  if (recipeList.length === 0) { showToast('Nessuna ricetta per le categorie selezionate'); return; }
+
+  const btn = document.getElementById('autofill-ai-btn');
+  btn.textContent = '...';
+  btn.disabled = true;
+
+  const prompt = `Crea un piano pasti per ${dates.length} giorni (${dates[0]} → ${dates[dates.length - 1]}) per: ${meals.join(', ')}.
+
+Ricette disponibili:
+${JSON.stringify(recipeList)}
+
+Target giornaliero: ${TARGETS.cal} kcal, ${TARGETS.prot}g prot, ${TARGETS.carb}g carb, ${TARGETS.fat}g grassi.
+Regole: usa ogni ricetta max 2 volte, varia i pasti, assegna UNA ricetta per slot.
+Rispondi SOLO con JSON valido:
+{"${dates[0]}":{"colazione":"id","pranzo":"id","cena":"id"},...}`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+        'anthropic-dangerous-allow-browser': 'true'
+      },
+      body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 1024, messages: [{ role: 'user', content: prompt }] })
+    });
+
+    if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || 'API error'); }
+
+    const data = await res.json();
+    const text = data.content[0].text;
+    const match = text.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error('Risposta non valida');
+
+    const plan = JSON.parse(match[0]);
+    let filled = 0;
+    Object.entries(plan).forEach(([dateStr, dayPlan]) => {
+      if (!state.plans[dateStr]) state.plans[dateStr] = { colazione: [], pranzo: [], cena: [], snack: [], garmin: 0 };
+      Object.entries(dayPlan).forEach(([meal, rid]) => {
+        if (!MEALS.includes(meal)) return;
+        if ((state.plans[dateStr][meal] || []).length > 0) return;
+        if (!state.recipes.find(r => r.id === rid)) return;
+        state.plans[dateStr][meal] = [rid];
+        filled++;
+      });
+    });
+
+    saveState();
+    renderWeekStrip();
+    renderPiano();
+    showToast(`✦ AI: ${filled} pasti generati`);
+  } catch (err) {
+    showToast('Errore: ' + err.message);
+  } finally {
+    btn.textContent = '✦ AI PLAN';
+    btn.disabled = false;
+  }
+}
+
+function openApiKeyModal() {
+  const stored = localStorage.getItem('mealprep_anthropic_key') || '';
+  document.getElementById('api-key-input').value = stored;
+  document.getElementById('api-key-modal').classList.remove('hidden');
+}
+
+function closeApiKeyModal() {
+  document.getElementById('api-key-modal').classList.add('hidden');
+}
+
 /* ── RENDER: PREP ────────────────────────────────────────────────────────────── */
 function renderPrep() {
   const days      = parseInt(document.getElementById('prep-days').value, 10) || 5;
   const container = document.getElementById('prep-content');
   const today     = todayStr();
 
-  // Sync filter buttons state
-  document.querySelectorAll('.prep-filter-btn').forEach(btn => {
-    btn.classList.toggle('active', state.prepFilterMeals.has(btn.dataset.meal));
-  });
-
-  // Build list of next N days from today
   const dates = [];
   for (let i = 0; i < days; i++) {
     const d = new Date(today + 'T12:00:00');
@@ -939,30 +1077,17 @@ function renderPrep() {
     dates.push(d.toISOString().slice(0, 10));
   }
 
-  // Aggregate across all planned days, filtered by selected meal categories
-  const ingTotals    = {};
   const recipeCounts = {};
-  let   hasAny       = false;
+  let hasAny = false;
 
   dates.forEach(dateStr => {
     const plan = state.plans[dateStr];
     if (!plan) return;
     MEALS.forEach(meal => {
-      if (!state.prepFilterMeals.has(meal)) return;
       (plan[meal] || []).forEach(entry => {
+        if (typeof entry !== 'string') return;
         hasAny = true;
-        if (typeof entry === 'string') {
-          recipeCounts[entry] = (recipeCounts[entry] || 0) + 1;
-          const recipe = state.recipes.find(r => r.id === entry);
-          if (recipe && recipe.ingredients) {
-            recipe.ingredients.forEach(item => {
-              ingTotals[item.ingredientId] = (ingTotals[item.ingredientId] || 0) + item.grams;
-            });
-          }
-        } else if (entry.type === 'ingredient') {
-          ingTotals[entry.ingredientId] = (ingTotals[entry.ingredientId] || 0) + entry.grams;
-        }
-        // Products: nessun ingrediente da aggregare
+        recipeCounts[entry] = (recipeCounts[entry] || 0) + 1;
       });
     });
   });
@@ -977,7 +1102,6 @@ function renderPrep() {
 
   let html = `<p class="prep-range-label">${fromLabel} → ${toLabel}</p>`;
 
-  // --- Lista cottura ---
   if (Object.keys(recipeCounts).length > 0) {
     html += '<p class="prep-section-title">RICETTE DA CUCINARE</p>';
     html += '<table class="prep-table prep-recipes-table"><thead><tr><th>RICETTA</th><th>PORZ.</th><th>KCAL</th><th>PROT</th><th>CARB</th><th>GRAS</th></tr></thead><tbody>';
@@ -997,62 +1121,10 @@ function renderPrep() {
     html += '</tbody></table>';
   }
 
-  // --- Lista spesa con checkbox ---
-  const sortedIng = Object.entries(ingTotals).sort(([a], [b]) => {
-    const ia = allIngredients().find(i => i.id === a);
-    const ib = allIngredients().find(i => i.id === b);
-    if (!ia || !ib) return 0;
-    return ia.category !== ib.category
-      ? ia.category.localeCompare(ib.category)
-      : ia.name.localeCompare(ib.name);
-  });
-
-  const unchecked = sortedIng.filter(([id]) => !state.prepChecked.has(id));
-  const checked   = sortedIng.filter(([id]) =>  state.prepChecked.has(id));
-
-  html += '<p class="prep-section-title">LISTA SPESA</p>';
-  html += '<table class="prep-table prep-shopping-table"><thead><tr><th></th><th>INGREDIENTE</th><th>CATEGORIA</th><th>QUANTITÀ</th></tr></thead><tbody>';
-
-  [...unchecked, ...checked].forEach(([ingId, totalGrams]) => {
-    const ing = allIngredients().find(i => i.id === ingId);
-    if (!ing) return;
-    const isChecked = state.prepChecked.has(ingId);
-    const display   = totalGrams >= 1000
-      ? `${(totalGrams / 1000).toFixed(2).replace('.', ',')} kg`
-      : `${Math.round(totalGrams)} g`;
-    html += `<tr class="${isChecked ? 'prep-checked-row' : ''}">
-      <td><button class="prep-check-btn ${isChecked ? 'checked' : ''}" data-ing="${ingId}">✓</button></td>
-      <td>${ing.name}</td>
-      <td style="color:var(--muted)">${ing.category}</td>
-      <td>${display}</td>
-    </tr>`;
-  });
-
-  html += '</tbody></table>';
   container.innerHTML = html;
-
-  container.querySelectorAll('.prep-check-btn').forEach(btn => {
-    btn.addEventListener('click', () => togglePrepCheck(btn.dataset.ing));
-  });
 }
 
-function togglePrepCheck(ingId) {
-  if (state.prepChecked.has(ingId)) state.prepChecked.delete(ingId);
-  else state.prepChecked.add(ingId);
-  localStorage.setItem(STORAGE.prepChecked, JSON.stringify([...state.prepChecked]));
-  renderPrep();
-}
 
-function resetPrepSession() {
-  state.prepChecked.clear();
-  localStorage.setItem(STORAGE.prepChecked, JSON.stringify([]));
-  renderPrep();
-  const btn = document.getElementById('prep-reset-btn');
-  const original = btn.textContent;
-  btn.textContent = '✓ RESET';
-  btn.disabled = true;
-  setTimeout(() => { btn.textContent = original; btn.disabled = false; }, 1000);
-}
 
 /* ── RENDER: WEEK OVERVIEW ───────────────────────────────────────────────────── */
 function renderWeekOverview() {
@@ -1761,20 +1833,33 @@ function init() {
     }
   });
 
-  // Prep days + reset + category filters
+  // Prep days
   document.getElementById('prep-days').addEventListener('input', renderPrep);
-  document.getElementById('prep-reset-btn').addEventListener('click', resetPrepSession);
-  document.querySelectorAll('.prep-filter-btn').forEach(btn => {
+
+  // Autofill panel
+  document.getElementById('autofill-js-btn').addEventListener('click', generatePlanJS);
+  document.getElementById('autofill-ai-btn').addEventListener('click', generatePlanAI);
+  document.querySelectorAll('.afm-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const meal = btn.dataset.meal;
-      if (state.prepFilterMeals.has(meal)) {
-        if (state.prepFilterMeals.size > 1) state.prepFilterMeals.delete(meal);
+      if (state.autofillMeals.has(meal)) {
+        if (state.autofillMeals.size > 1) state.autofillMeals.delete(meal);
       } else {
-        state.prepFilterMeals.add(meal);
+        state.autofillMeals.add(meal);
       }
-      renderPrep();
+      btn.classList.toggle('active', state.autofillMeals.has(meal));
     });
   });
+
+  // API key modal
+  document.getElementById('api-key-save-btn').addEventListener('click', () => {
+    const key = document.getElementById('api-key-input').value.trim();
+    if (!key) return;
+    localStorage.setItem('mealprep_anthropic_key', key);
+    closeApiKeyModal();
+    generatePlanAI();
+  });
+  document.getElementById('api-key-modal-close').addEventListener('click', closeApiKeyModal);
 
   // Initial render
   renderWeekStrip();
