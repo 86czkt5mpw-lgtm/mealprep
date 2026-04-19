@@ -28,9 +28,10 @@ const state = {
   pickerMode:        'ricette',
   weekOffset:        0,
   pianoView:         'giorno',
-  copySource:        null, // { entry, meal, dateStr }
-  copyTargetDays:    [],   // dateStr[] selezionati
-  prepChecked:       new Set(), // ingredientIds già in casa
+  copySource:           null, // { entry, meal, dateStr }
+  copyTargetDays:       [],   // dateStr[] selezionati
+  prepChecked:          new Set(), // ingredientIds già in casa
+  pendingIngredientRow: null, // riga ricetta in attesa di nuovo ingrediente
 };
 
 /* ── DATE HELPERS ────────────────────────────────────────────────────────────── */
@@ -563,32 +564,95 @@ function addIngredientRow() {
   const container = document.getElementById('builder-ingredients');
   const row = document.createElement('div');
   row.className = 'builder-ingredient-row';
+  row.dataset.ingId = '';
 
-  const select = document.createElement('select');
-  select.innerHTML = '<option value="">— ingrediente —</option>'
-    + allIngredients().map(i => `<option value="${i.id}">${i.name}${i.custom ? ' ★' : ''}</option>`).join('');
-  select.addEventListener('change', updateBuilderPreview);
+  const acWrapper = document.createElement('div');
+  acWrapper.className = 'builder-ac-wrapper';
 
-  const input = document.createElement('input');
-  input.type = 'number'; input.className = 'mono-input';
-  input.placeholder = 'g'; input.min = '0'; input.max = '2000';
-  input.addEventListener('input', updateBuilderPreview);
+  const acInput = document.createElement('input');
+  acInput.type = 'text';
+  acInput.className = 'mono-input builder-ac-input';
+  acInput.placeholder = '— cerca ingrediente —';
+  acInput.autocomplete = 'off';
+
+  const acDropdown = document.createElement('div');
+  acDropdown.className = 'builder-ac-dropdown hidden';
+
+  acWrapper.append(acInput, acDropdown);
+
+  acInput.addEventListener('input', () => {
+    row.dataset.ingId = '';
+    updateBuilderPreview();
+    const query = acInput.value.trim();
+    if (!query) { acDropdown.classList.add('hidden'); return; }
+    const matches = allIngredients()
+      .filter(i => i.name.toLowerCase().includes(query.toLowerCase()))
+      .slice(0, 8);
+    renderBuilderAcDropdown(acDropdown, acInput, row, matches, query);
+  });
+
+  acInput.addEventListener('focus', () => {
+    const query = acInput.value.trim();
+    if (query && !row.dataset.ingId) acInput.dispatchEvent(new Event('input'));
+  });
+
+  const gramsInput = document.createElement('input');
+  gramsInput.type = 'number'; gramsInput.className = 'mono-input';
+  gramsInput.placeholder = 'g'; gramsInput.min = '0'; gramsInput.max = '2000';
+  gramsInput.addEventListener('input', updateBuilderPreview);
 
   const removeBtn = document.createElement('button');
   removeBtn.className = 'remove-row-btn'; removeBtn.textContent = '✕'; removeBtn.type = 'button';
   removeBtn.addEventListener('click', () => { row.remove(); updateBuilderPreview(); });
 
-  row.append(select, input, removeBtn);
+  row.append(acWrapper, gramsInput, removeBtn);
   container.appendChild(row);
+  return row;
+}
+
+function renderBuilderAcDropdown(dropdown, input, row, matches, rawQuery) {
+  let html = matches.map(ing =>
+    `<div class="builder-ac-item" data-id="${ing.id}" data-name="${ing.name}">
+      <span class="builder-ac-name">${ing.name}</span>
+      <span class="builder-ac-cat">${ing.category}</span>
+    </div>`
+  ).join('');
+
+  html += `<div class="builder-ac-item builder-ac-create" data-create="${rawQuery}">
+    <span>+ Aggiungi "<strong>${rawQuery}</strong>" come nuovo ingrediente</span>
+  </div>`;
+
+  dropdown.innerHTML = html;
+  dropdown.classList.remove('hidden');
+
+  dropdown.querySelectorAll('.builder-ac-item:not(.builder-ac-create)').forEach(item => {
+    item.addEventListener('click', () => {
+      row.dataset.ingId = item.dataset.id;
+      input.value = item.dataset.name;
+      dropdown.classList.add('hidden');
+      updateBuilderPreview();
+    });
+  });
+
+  dropdown.querySelector('.builder-ac-create').addEventListener('click', () => {
+    dropdown.classList.add('hidden');
+    openIngredientBuilderFromRecipe(rawQuery, row);
+  });
+}
+
+function openIngredientBuilderFromRecipe(name, row) {
+  state.pendingIngredientRow = row;
+  openIngredientBuilder();
+  document.getElementById('ing-name-input').value = name;
 }
 
 function updateBuilderPreview() {
   const totals = { cal: 0, prot: 0, carb: 0, fat: 0 };
   document.querySelectorAll('.builder-ingredient-row').forEach(row => {
-    const ingId = row.querySelector('select').value;
-    const grams = parseFloat(row.querySelector('input').value) || 0;
+    const ingId = row.dataset.ingId;
+    const grams = parseFloat(row.querySelector('input[type="number"]')?.value) || 0;
     if (!ingId || !grams) return;
-    const ing = INGREDIENTS.find(i => i.id === ingId);
+    const ing = allIngredients().find(i => i.id === ingId);
     if (!ing) return;
     const f = grams / 100;
     totals.cal += ing.cal * f; totals.prot += ing.prot * f;
@@ -618,8 +682,8 @@ function saveNewRecipe() {
   } else {
     const ingredients = [];
     document.querySelectorAll('.builder-ingredient-row').forEach(row => {
-      const ingId = row.querySelector('select').value;
-      const grams = parseFloat(row.querySelector('input').value) || 0;
+      const ingId = row.dataset.ingId;
+      const grams = parseFloat(row.querySelector('input[type="number"]')?.value) || 0;
       if (ingId && grams > 0) ingredients.push({ ingredientId: ingId, grams });
     });
     if (ingredients.length === 0) return;
@@ -1164,6 +1228,17 @@ function saveCustomIngredient() {
   state.customIngredients.push({ id, name, category, cal, prot, carb, fat, custom: true });
   saveState();
   renderIngredients();
+
+  // Se siamo arrivati qui dal recipe builder, auto-seleziona la riga in attesa
+  if (state.pendingIngredientRow) {
+    const row = state.pendingIngredientRow;
+    row.dataset.ingId = id;
+    const acInput = row.querySelector('.builder-ac-input');
+    if (acInput) acInput.value = name;
+    state.pendingIngredientRow = null;
+    updateBuilderPreview();
+  }
+
   closeIngredientBuilder();
 }
 
@@ -1363,10 +1438,14 @@ function init() {
     const q = e.target.value.trim();
     searchDebounceTimer = setTimeout(() => handleIngredientSearch(q), 500);
   });
-  // Chiudi risultati cliccando fuori
+  // Chiudi risultati ricerca ingrediente cliccando fuori
   document.addEventListener('click', e => {
     if (!e.target.closest('.ing-search-wrapper')) {
       document.getElementById('ing-search-results').classList.add('hidden');
+    }
+    // Chiudi autocomplete righe ricetta cliccando fuori
+    if (!e.target.closest('.builder-ac-wrapper')) {
+      document.querySelectorAll('.builder-ac-dropdown').forEach(d => d.classList.add('hidden'));
     }
   });
 
