@@ -358,33 +358,33 @@ function renderSuggestions() {
     return;
   }
 
-  list.innerHTML = scored.map(({ recipe, score }, i) => {
-    const m    = calcRecipeMacros(recipe);
-    const cat  = recipe.category || 'snack';
-    const macroItems = [
-      { label: 'KCAL', val: fmt(m.cal),  gap: gap.cal,  raw: m.cal  },
-      { label: 'PROT', val: fmt(m.prot)+'g', gap: gap.prot, raw: m.prot },
-      { label: 'CARB', val: fmt(m.carb)+'g', gap: gap.carb, raw: m.carb },
-      { label: 'GRAS', val: fmt(m.fat)+'g',  gap: gap.fat,  raw: m.fat  },
-    ];
-    return `<div class="suggestion-item">
-      <div>
-        <div class="suggestion-rank">#${i + 1} · ${CAT_LABELS[cat] || cat}</div>
-        <div class="suggestion-name">${recipe.name}</div>
-        <div class="suggestion-macros">
-          ${macroItems.map(mi => {
-            const pct = mi.gap > 0 ? Math.round((mi.raw / mi.gap) * 100) : 0;
-            const cls = pct > 110 ? 'over' : pct >= 80 ? 'good' : 'warn';
-            return `<div class="suggestion-macro">
-              <div class="suggestion-macro-val">${mi.val}</div>
-              <div class="suggestion-macro-label">${mi.label}</div>
-              <div class="suggestion-macro-pct ${cls}">${pct}% gap</div>
-            </div>`;
-          }).join('')}
-        </div>
-      </div>
-      <button class="suggestion-add-btn" data-id="${recipe.id}" data-meal="${cat}">+ AGGIUNGI</button>
-    </div>`;
+  function macroHtml(val, label, raw, gapVal) {
+    const pct = gapVal > 0 ? Math.round((raw / gapVal) * 100) : 0;
+    const cls = pct > 110 ? 'over' : pct >= 80 ? 'good' : 'warn';
+    return '<div class="suggestion-macro">'
+      + '<div class="suggestion-macro-val">' + val + '</div>'
+      + '<div class="suggestion-macro-label">' + label + '</div>'
+      + '<div class="suggestion-macro-pct ' + cls + '">' + pct + '% gap</div>'
+      + '</div>';
+  }
+
+  list.innerHTML = scored.map(function(item, i) {
+    const recipe = item.recipe;
+    const m   = calcRecipeMacros(recipe);
+    const cat = recipe.category || 'snack';
+    return '<div class="suggestion-item">'
+      + '<div>'
+      + '<div class="suggestion-rank">#' + (i + 1) + ' · ' + (CAT_LABELS[cat] || cat) + '</div>'
+      + '<div class="suggestion-name">' + recipe.name + '</div>'
+      + '<div class="suggestion-macros">'
+      + macroHtml(fmt(m.cal),       'KCAL', m.cal,  gap.cal)
+      + macroHtml(fmt(m.prot) + 'g','PROT', m.prot, gap.prot)
+      + macroHtml(fmt(m.carb) + 'g','CARB', m.carb, gap.carb)
+      + macroHtml(fmt(m.fat)  + 'g','GRAS', m.fat,  gap.fat)
+      + '</div>'
+      + '</div>'
+      + '<button class="suggestion-add-btn" data-id="' + recipe.id + '" data-meal="' + cat + '">+ AGGIUNGI</button>'
+      + '</div>';
   }).join('');
 
   list.querySelectorAll('.suggestion-add-btn').forEach(btn => {
