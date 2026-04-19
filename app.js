@@ -843,7 +843,10 @@ function openCopyDayModal(entry, meal, sourceDate) {
   document.getElementById('copy-day-item-label').textContent = getEntryLabel(entry);
 
   const today = todayStr();
-  const days  = getWeekDays(today, state.weekOffset);
+  const days  = [
+    ...getWeekDays(today, state.weekOffset),
+    ...getWeekDays(today, state.weekOffset + 1),
+  ];
   const grid  = document.getElementById('copy-day-grid');
 
   grid.innerHTML = days.map(dateStr => {
