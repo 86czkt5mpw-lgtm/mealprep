@@ -188,8 +188,45 @@
             <option value="snack" selected>Snack</option>
           </select>
         </div>
-        <div id="builder-ingredients"></div>
-        <button class="secondary-btn" id="add-ingredient-row-btn">+ INGREDIENTE</button>
+        <div class="builder-type-toggle">
+          <button class="builder-type-btn active" data-type="ricetta">RICETTA</button>
+          <button class="builder-type-btn" data-type="prodotto">PRODOTTO</button>
+        </div>
+
+        <div id="builder-ricetta-section">
+          <div id="builder-ingredients"></div>
+          <button class="secondary-btn" id="add-ingredient-row-btn">+ INGREDIENTE</button>
+        </div>
+
+        <div id="builder-prodotto-section" class="hidden">
+          <div class="ing-search-wrapper">
+            <label class="field-label">CERCA PRODOTTO</label>
+            <input type="text" id="product-search-input" class="mono-input full-width" placeholder="nome oppure barcode (es. 8001120000001)">
+            <div class="ing-search-mode hidden" id="product-search-mode"></div>
+            <div class="ing-search-results hidden" id="product-search-results"></div>
+          </div>
+          <div class="ing-search-divider"><span>oppure inserisci manualmente</span></div>
+          <p class="field-label" style="margin-bottom:0">MACRO PER PORZIONE</p>
+          <div class="ing-macro-grid">
+            <div>
+              <label class="field-label" for="product-cal">KCAL</label>
+              <input type="number" id="product-cal" class="mono-input full-width" placeholder="0" min="0">
+            </div>
+            <div>
+              <label class="field-label" for="product-prot">PROTEINE g</label>
+              <input type="number" id="product-prot" class="mono-input full-width" placeholder="0" min="0" step="0.1">
+            </div>
+            <div>
+              <label class="field-label" for="product-carb">CARBOIDRATI g</label>
+              <input type="number" id="product-carb" class="mono-input full-width" placeholder="0" min="0" step="0.1">
+            </div>
+            <div>
+              <label class="field-label" for="product-fat">GRASSI g</label>
+              <input type="number" id="product-fat" class="mono-input full-width" placeholder="0" min="0" step="0.1">
+            </div>
+          </div>
+        </div>
+
         <div class="builder-preview" id="builder-preview">
           <div class="builder-preview-stat"><div class="builder-preview-val">0</div><div class="builder-preview-label">KCAL</div></div>
           <div class="builder-preview-stat"><div class="builder-preview-val">0</div><div class="builder-preview-label">PROT</div></div>

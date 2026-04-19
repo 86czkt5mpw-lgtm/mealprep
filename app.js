@@ -112,6 +112,7 @@ function allIngredients() {
 
 /* ── MACRO UTILS ─────────────────────────────────────────────────────────────── */
 function calcRecipeMacros(recipe) {
+  if (recipe.type === 'product') return { ...recipe.macros };
   return recipe.ingredients.reduce((acc, item) => {
     const ing = allIngredients().find(i => i.id === item.ingredientId);
     if (!ing) return acc;
@@ -404,12 +405,13 @@ function renderRecipes() {
     return;
   }
   grid.innerHTML = state.recipes.map(recipe => {
-    const m   = calcRecipeMacros(recipe);
-    const cat = recipe.category || 'snack';
+    const m      = calcRecipeMacros(recipe);
+    const cat    = recipe.category || 'snack';
+    const isProd = recipe.type === 'product';
     return `<div class="recipe-card">
       <div class="cat-badge cat-${cat}"></div>
       <button class="recipe-card-delete" data-id="${recipe.id}" title="Elimina">✕</button>
-      <div class="recipe-card-name">${recipe.name}</div>
+      <div class="recipe-card-name">${recipe.name}${isProd ? '<span class="ing-custom-badge prod-badge">PRODOTTO</span>' : ''}</div>
       <div class="recipe-card-category">${CAT_LABELS[cat] || cat}</div>
       <div class="recipe-card-macros">
         <div class="recipe-macro"><div class="recipe-macro-val">${fmt(m.cal)}</div><div class="recipe-macro-label">KCAL</div></div>
@@ -444,6 +446,13 @@ function openRecipeBuilder() {
   document.getElementById('recipe-name-input').value = '';
   document.getElementById('recipe-category-input').value = 'snack';
   document.getElementById('builder-ingredients').innerHTML = '';
+  switchBuilderType('ricetta');
+  ['product-cal','product-prot','product-carb','product-fat'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('product-search-input').value = '';
+  document.getElementById('product-search-results').classList.add('hidden');
+  document.getElementById('product-search-mode').classList.add('hidden');
   updateBuilderPreview();
   addIngredientRow();
   document.getElementById('recipe-builder-modal').classList.remove('hidden');
@@ -451,6 +460,98 @@ function openRecipeBuilder() {
 
 function closeRecipeBuilder() {
   document.getElementById('recipe-builder-modal').classList.add('hidden');
+}
+
+function switchBuilderType(type) {
+  document.querySelectorAll('.builder-type-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.type === type);
+  });
+  document.getElementById('builder-ricetta-section').classList.toggle('hidden', type !== 'ricetta');
+  document.getElementById('builder-prodotto-section').classList.toggle('hidden', type !== 'prodotto');
+  if (type === 'prodotto') updateProductPreview();
+  else updateBuilderPreview();
+}
+
+function updateProductPreview() {
+  const cal  = parseFloat(document.getElementById('product-cal').value)  || 0;
+  const prot = parseFloat(document.getElementById('product-prot').value) || 0;
+  const carb = parseFloat(document.getElementById('product-carb').value) || 0;
+  const fat  = parseFloat(document.getElementById('product-fat').value)  || 0;
+  document.getElementById('builder-preview').innerHTML = `
+    <div class="builder-preview-stat"><div class="builder-preview-val">${fmt(cal)}</div><div class="builder-preview-label">KCAL</div></div>
+    <div class="builder-preview-stat"><div class="builder-preview-val">${fmt(prot)}</div><div class="builder-preview-label">PROT</div></div>
+    <div class="builder-preview-stat"><div class="builder-preview-val">${fmt(carb)}</div><div class="builder-preview-label">CARB</div></div>
+    <div class="builder-preview-stat"><div class="builder-preview-val">${fmt(fat)}</div><div class="builder-preview-label">GRAS</div></div>`;
+}
+
+function applyProductSearchResult(result) {
+  if (!document.getElementById('recipe-name-input').value.trim()) {
+    document.getElementById('recipe-name-input').value = result.name;
+  }
+  document.getElementById('product-cal').value  = result.cal;
+  document.getElementById('product-prot').value = result.prot;
+  document.getElementById('product-carb').value = result.carb;
+  document.getElementById('product-fat').value  = result.fat;
+  updateProductPreview();
+}
+
+let productSearchDebounceTimer = null;
+
+async function handleProductSearch(query) {
+  const modeEl    = document.getElementById('product-search-mode');
+  const resultsEl = document.getElementById('product-search-results');
+
+  if (query.length < 2) {
+    resultsEl.classList.add('hidden');
+    modeEl.classList.add('hidden');
+    return;
+  }
+
+  const barcode = isBarcode(query);
+  modeEl.textContent = barcode ? '▸ BARCODE RILEVATO — ricerca su Open Food Facts' : '▸ RICERCA TESTUALE — USDA + Open Food Facts';
+  modeEl.className   = `ing-search-mode ${barcode ? 'barcode' : ''}`;
+
+  resultsEl.innerHTML = '<div class="ing-search-loading">Ricerca in corso...</div>';
+  resultsEl.classList.remove('hidden');
+
+  try {
+    let results = [];
+    if (barcode) {
+      results = await searchByBarcode(query);
+      if (results.length === 0) {
+        resultsEl.innerHTML = '<div class="ing-search-loading">Barcode non trovato su Open Food Facts.</div>';
+        return;
+      }
+    } else {
+      const [usdaRes, offRes] = await Promise.allSettled([searchUSDA(query), searchOpenFoodFacts(query)]);
+      const usda = usdaRes.status === 'fulfilled' ? usdaRes.value : [];
+      const off  = offRes.status  === 'fulfilled' ? offRes.value  : [];
+      const maxLen = Math.max(usda.length, off.length);
+      for (let i = 0; i < maxLen && results.length < 8; i++) {
+        if (usda[i]) results.push(usda[i]);
+        if (off[i])  results.push(off[i]);
+      }
+    }
+    if (results.length === 0) {
+      resultsEl.innerHTML = '<div class="ing-search-loading">Nessun risultato.</div>';
+      return;
+    }
+    resultsEl.innerHTML = results.map((r, i) => `
+      <div class="ing-search-result" data-idx="${i}">
+        <span class="ing-source-badge ${r.source.toLowerCase()}">${r.source}</span>
+        <span class="ing-search-result-name" title="${r.name}">${r.name}</span>
+        <span class="ing-search-result-macros">${r.cal} kcal · ${r.prot}P · ${r.carb}C · ${r.fat}F</span>
+      </div>`).join('');
+    resultsEl.querySelectorAll('.ing-search-result').forEach(el => {
+      el.addEventListener('click', () => {
+        applyProductSearchResult(results[parseInt(el.dataset.idx, 10)]);
+        resultsEl.classList.add('hidden');
+      });
+    });
+  } catch (err) {
+    console.error('Product search error:', err);
+    resultsEl.innerHTML = '<div class="ing-search-loading">Errore di rete. Controlla la connessione.</div>';
+  }
 }
 
 function addIngredientRow() {
@@ -500,15 +601,26 @@ function saveNewRecipe() {
   const category = document.getElementById('recipe-category-input').value;
   if (!name) { document.getElementById('recipe-name-input').focus(); return; }
 
-  const ingredients = [];
-  document.querySelectorAll('.builder-ingredient-row').forEach(row => {
-    const ingId = row.querySelector('select').value;
-    const grams = parseFloat(row.querySelector('input').value) || 0;
-    if (ingId && grams > 0) ingredients.push({ ingredientId: ingId, grams });
-  });
-  if (ingredients.length === 0) return;
+  const isProduct = document.querySelector('.builder-type-btn[data-type="prodotto"]').classList.contains('active');
 
-  state.recipes.push({ id: uid(), name, category, ingredients });
+  if (isProduct) {
+    const cal  = parseFloat(document.getElementById('product-cal').value)  || 0;
+    const prot = parseFloat(document.getElementById('product-prot').value) || 0;
+    const carb = parseFloat(document.getElementById('product-carb').value) || 0;
+    const fat  = parseFloat(document.getElementById('product-fat').value)  || 0;
+    if (cal === 0 && prot === 0 && carb === 0 && fat === 0) return;
+    state.recipes.push({ id: uid(), name, category, type: 'product', macros: { cal, prot, carb, fat } });
+  } else {
+    const ingredients = [];
+    document.querySelectorAll('.builder-ingredient-row').forEach(row => {
+      const ingId = row.querySelector('select').value;
+      const grams = parseFloat(row.querySelector('input').value) || 0;
+      if (ingId && grams > 0) ingredients.push({ ingredientId: ingId, grams });
+    });
+    if (ingredients.length === 0) return;
+    state.recipes.push({ id: uid(), name, category, ingredients });
+  }
+
   saveState();
   renderRecipes();
   closeRecipeBuilder();
@@ -1140,6 +1252,28 @@ function init() {
   });
   document.getElementById('add-ingredient-row-btn').addEventListener('click', addIngredientRow);
   document.getElementById('save-recipe-btn').addEventListener('click', saveNewRecipe);
+
+  // Builder type toggle
+  document.querySelectorAll('.builder-type-btn').forEach(btn => {
+    btn.addEventListener('click', () => switchBuilderType(btn.dataset.type));
+  });
+
+  // Product macro inputs → live preview
+  ['product-cal','product-prot','product-carb','product-fat'].forEach(id => {
+    document.getElementById(id).addEventListener('input', updateProductPreview);
+  });
+
+  // Product search
+  document.getElementById('product-search-input').addEventListener('input', e => {
+    clearTimeout(productSearchDebounceTimer);
+    const q = e.target.value.trim();
+    productSearchDebounceTimer = setTimeout(() => handleProductSearch(q), 500);
+  });
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#builder-prodotto-section')) {
+      document.getElementById('product-search-results').classList.add('hidden');
+    }
+  });
 
   // Copy day modal
   document.getElementById('copy-day-close').addEventListener('click', closeCopyDayModal);
