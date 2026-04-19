@@ -956,8 +956,7 @@ function generatePlanJS() {
 
   if (filled === 0) { showToast('Tutti gli slot selezionati sono già occupati'); return; }
   saveState();
-  renderWeekStrip();
-  renderPiano();
+  navigateToDate(dates[0]);
   showToast(`${filled} pasti generati`);
 }
 
@@ -1023,8 +1022,7 @@ Rispondi SOLO con JSON valido:
     });
 
     saveState();
-    renderWeekStrip();
-    renderPiano();
+    navigateToDate(dates[0]);
     showToast(`✦ AI: ${filled} pasti generati`);
   } catch (err) {
     showToast('Errore: ' + err.message);
@@ -1254,6 +1252,18 @@ function applyCopyToDays() {
   renderWeekOverview();
   renderWeekStrip();
   closeCopyDayModal();
+}
+
+function navigateToDate(dateStr) {
+  const today = todayStr();
+  const target = new Date(dateStr + 'T12:00:00');
+  const base   = new Date(today + 'T12:00:00');
+  const diffDays = Math.round((target - base) / 86400000);
+  state.weekOffset = Math.floor(diffDays / 7);
+  state.selectedDate = dateStr;
+  renderWeekStrip();
+  if (state.pianoView === 'settimana') renderWeekOverview();
+  else renderPiano();
 }
 
 /* ── VIEW TOGGLE ─────────────────────────────────────────────────────────────── */
