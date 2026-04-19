@@ -14,7 +14,7 @@ const STORAGE = {
   prepChecked: 'mealprep_prep_checked',
 };
 const BACKUP_REMINDER_DAYS = 7;
-const CAT_LABELS = { colazione: 'COLAZIONE', pasto: 'PASTO', snack: 'SNACK' };
+const CAT_LABELS = { colazione: 'COLAZIONE', pranzo: 'PRANZO', cena: 'CENA', pasto: 'PASTO', snack: 'SNACK' };
 const AFMEALS    = ['colazione', 'pasto', 'snack']; // categorie ricette per autofill
 const AFMEAL_SLOTS = { colazione: ['colazione'], pasto: ['pranzo', 'cena'], snack: ['snack'] };
 const DAY_NAMES  = ['DOM', 'LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB'];
