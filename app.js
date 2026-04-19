@@ -1842,12 +1842,18 @@ function init() {
   document.querySelectorAll('.afm-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const meal = btn.dataset.meal;
-      if (state.autofillMeals.has(meal)) {
-        if (state.autofillMeals.size > 1) state.autofillMeals.delete(meal);
+      const isOnlyActive = state.autofillMeals.has(meal) && state.autofillMeals.size === 1;
+      if (isOnlyActive) {
+        // torna all-selected
+        MEALS.forEach(m => state.autofillMeals.add(m));
       } else {
+        // solo mode: seleziona solo questo
+        state.autofillMeals.clear();
         state.autofillMeals.add(meal);
       }
-      btn.classList.toggle('active', state.autofillMeals.has(meal));
+      document.querySelectorAll('.afm-btn').forEach(b => {
+        b.classList.toggle('active', state.autofillMeals.has(b.dataset.meal));
+      });
     });
   });
 
