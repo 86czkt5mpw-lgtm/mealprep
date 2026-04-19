@@ -176,14 +176,18 @@ body {
 
 /* ── WEEK OVERVIEW (multi-day) ─────────────────────────────────────────────── */
 .week-overview {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  display: flex;
   gap: 8px;
   overflow-x: auto;
-  padding-bottom: 8px;
+  padding-bottom: 12px;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
 }
+.week-overview::-webkit-scrollbar { height: 4px; }
 .wov-col {
-  min-width: 140px;
+  flex: 0 0 200px;
+  min-width: 200px;
+  scroll-snap-align: start;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -974,6 +978,38 @@ body {
   transition: color 0.15s;
 }
 .ing-delete-btn:hover { color: var(--red); }
+
+/* ── PREP REDESIGN ─────────────────────────────────────────────────────────── */
+.prep-range-label {
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.prep-shopping-table th:first-child,
+.prep-shopping-table td:first-child {
+  width: 40px;
+  text-align: center;
+  padding: 6px 4px;
+}
+.prep-check-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: transparent;
+  font-family: var(--font);
+  font-size: 12px;
+  width: 26px; height: 26px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.prep-check-btn:hover { border-color: var(--green); color: var(--green); }
+.prep-check-btn.checked { background: var(--green); border-color: var(--green); color: #fff; }
+.prep-checked-row td { opacity: 0.3; text-decoration: line-through; }
+.prep-checked-row td:first-child { opacity: 1; text-decoration: none; }
 
 /* ── HIDDEN ────────────────────────────────────────────────────────────────── */
 .hidden { display: none !important; }

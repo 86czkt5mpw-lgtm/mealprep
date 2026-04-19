@@ -7,10 +7,11 @@ const CONFIG = {
 };
 
 const STORAGE = {
-  recipes:    'mealprep_recipes',
-  plans:      'mealprep_plans',
-  customIngs: 'mealprep_custom_ingredients',
-  lastExport: 'mealprep_last_export',
+  recipes:     'mealprep_recipes',
+  plans:       'mealprep_plans',
+  customIngs:  'mealprep_custom_ingredients',
+  lastExport:  'mealprep_last_export',
+  prepChecked: 'mealprep_prep_checked',
 };
 const BACKUP_REMINDER_DAYS = 7;
 const CAT_LABELS = { colazione: 'COLAZIONE', pranzo: 'PRANZO', cena: 'CENA', snack: 'SNACK' };
@@ -29,6 +30,7 @@ const state = {
   pianoView:         'giorno',
   copySource:        null, // { entry, meal, dateStr }
   copyTargetDays:    [],   // dateStr[] selezionati
+  prepChecked:       new Set(), // ingredientIds già in casa
 };
 
 /* ── DATE HELPERS ────────────────────────────────────────────────────────────── */
@@ -181,6 +183,9 @@ function loadState() {
 
   const storedCustom = localStorage.getItem(STORAGE.customIngs);
   state.customIngredients = storedCustom ? JSON.parse(storedCustom) : [];
+
+  const storedPrepChecked = localStorage.getItem(STORAGE.prepChecked);
+  state.prepChecked = storedPrepChecked ? new Set(JSON.parse(storedPrepChecked)) : new Set();
 
   state.selectedDate = todayStr();
   state.weekOffset   = 0;
@@ -628,40 +633,56 @@ function saveNewRecipe() {
 
 /* ── RENDER: PREP ────────────────────────────────────────────────────────────── */
 function renderPrep() {
-  const days      = parseInt(document.getElementById('prep-days').value, 10) || 3;
+  const days      = parseInt(document.getElementById('prep-days').value, 10) || 5;
   const container = document.getElementById('prep-content');
-  const plan      = currentPlan();
-  const allEntries = MEALS.flatMap(meal => plan[meal] || []);
+  const today     = todayStr();
 
-  if (allEntries.length === 0) {
-    container.innerHTML = '<p class="prep-empty">Nessuna ricetta nel piano.<br>Vai su <strong>PIANO</strong> e aggiungi ricette o ingredienti ai pasti.</p>';
-    return;
+  // Build list of next N days from today
+  const dates = [];
+  for (let i = 0; i < days; i++) {
+    const d = new Date(today + 'T12:00:00');
+    d.setDate(d.getDate() + i);
+    dates.push(d.toISOString().slice(0, 10));
   }
 
-  // Aggregate ingredient totals across all entries × days
-  const ingTotals = {};
+  // Aggregate across all planned days
+  const ingTotals    = {};
+  const recipeCounts = {};
+  let   hasAny       = false;
 
-  allEntries.forEach(entry => {
-    let ingredients = [];
-    if (typeof entry === 'string') {
-      const recipe = state.recipes.find(r => r.id === entry);
-      if (recipe) ingredients = recipe.ingredients;
-    } else if (entry.type === 'ingredient') {
-      ingredients = [{ ingredientId: entry.ingredientId, grams: entry.grams }];
-    }
-    ingredients.forEach(item => {
-      ingTotals[item.ingredientId] = (ingTotals[item.ingredientId] || 0) + item.grams * days;
+  dates.forEach(dateStr => {
+    const plan = state.plans[dateStr];
+    if (!plan) return;
+    MEALS.forEach(meal => {
+      (plan[meal] || []).forEach(entry => {
+        hasAny = true;
+        if (typeof entry === 'string') {
+          recipeCounts[entry] = (recipeCounts[entry] || 0) + 1;
+          const recipe = state.recipes.find(r => r.id === entry);
+          if (recipe && recipe.ingredients) {
+            recipe.ingredients.forEach(item => {
+              ingTotals[item.ingredientId] = (ingTotals[item.ingredientId] || 0) + item.grams;
+            });
+          }
+        } else if (entry.type === 'ingredient') {
+          ingTotals[entry.ingredientId] = (ingTotals[entry.ingredientId] || 0) + entry.grams;
+        }
+        // Products: nessun ingrediente da aggregare
+      });
     });
   });
 
-  // Recipe summary (only for recipe entries)
-  const recipeCounts = {};
-  allEntries.filter(e => typeof e === 'string').forEach(rid => {
-    recipeCounts[rid] = (recipeCounts[rid] || 0) + days;
-  });
+  const fromLabel = formatDateLabel(dates[0]);
+  const toLabel   = formatDateLabel(dates[dates.length - 1]);
 
-  let html = '';
+  if (!hasAny) {
+    container.innerHTML = `<p class="prep-empty">Nessun pasto pianificato dal <strong>${fromLabel}</strong> al <strong>${toLabel}</strong>.<br>Vai su <strong>PIANO</strong> e aggiungi pasti ai giorni.</p>`;
+    return;
+  }
 
+  let html = `<p class="prep-range-label">${fromLabel} → ${toLabel}</p>`;
+
+  // --- Lista cottura ---
   if (Object.keys(recipeCounts).length > 0) {
     html += '<p class="prep-section-title">RICETTE DA CUCINARE</p>';
     html += '<table class="prep-table"><thead><tr><th>RICETTA</th><th>PORZIONI</th><th>KCAL TOTALI</th></tr></thead><tbody>';
@@ -674,6 +695,7 @@ function renderPrep() {
     html += '</tbody></table>';
   }
 
+  // --- Lista spesa con checkbox ---
   const sortedIng = Object.entries(ingTotals).sort(([a], [b]) => {
     const ia = allIngredients().find(i => i.id === a);
     const ib = allIngredients().find(i => i.id === b);
@@ -683,19 +705,46 @@ function renderPrep() {
       : ia.name.localeCompare(ib.name);
   });
 
+  const unchecked = sortedIng.filter(([id]) => !state.prepChecked.has(id));
+  const checked   = sortedIng.filter(([id]) =>  state.prepChecked.has(id));
+
   html += '<p class="prep-section-title">LISTA SPESA</p>';
-  html += '<table class="prep-table"><thead><tr><th>INGREDIENTE</th><th>CATEGORIA</th><th>QUANTITÀ</th></tr></thead><tbody>';
-  sortedIng.forEach(([ingId, totalGrams]) => {
+  html += '<table class="prep-table prep-shopping-table"><thead><tr><th></th><th>INGREDIENTE</th><th>CATEGORIA</th><th>QUANTITÀ</th></tr></thead><tbody>';
+
+  [...unchecked, ...checked].forEach(([ingId, totalGrams]) => {
     const ing = allIngredients().find(i => i.id === ingId);
     if (!ing) return;
-    const display = totalGrams >= 1000
+    const isChecked = state.prepChecked.has(ingId);
+    const display   = totalGrams >= 1000
       ? `${(totalGrams / 1000).toFixed(2).replace('.', ',')} kg`
       : `${Math.round(totalGrams)} g`;
-    html += `<tr><td>${ing.name}</td><td style="color:var(--muted)">${ing.category}</td><td>${display}</td></tr>`;
+    html += `<tr class="${isChecked ? 'prep-checked-row' : ''}">
+      <td><button class="prep-check-btn ${isChecked ? 'checked' : ''}" data-ing="${ingId}">✓</button></td>
+      <td>${ing.name}</td>
+      <td style="color:var(--muted)">${ing.category}</td>
+      <td>${display}</td>
+    </tr>`;
   });
-  html += '</tbody></table>';
 
+  html += '</tbody></table>';
   container.innerHTML = html;
+
+  container.querySelectorAll('.prep-check-btn').forEach(btn => {
+    btn.addEventListener('click', () => togglePrepCheck(btn.dataset.ing));
+  });
+}
+
+function togglePrepCheck(ingId) {
+  if (state.prepChecked.has(ingId)) state.prepChecked.delete(ingId);
+  else state.prepChecked.add(ingId);
+  localStorage.setItem(STORAGE.prepChecked, JSON.stringify([...state.prepChecked]));
+  renderPrep();
+}
+
+function resetPrepSession() {
+  state.prepChecked.clear();
+  localStorage.setItem(STORAGE.prepChecked, JSON.stringify([]));
+  renderPrep();
 }
 
 /* ── RENDER: WEEK OVERVIEW ───────────────────────────────────────────────────── */
@@ -1314,8 +1363,9 @@ function init() {
     }
   });
 
-  // Prep days
+  // Prep days + reset
   document.getElementById('prep-days').addEventListener('input', renderPrep);
+  document.getElementById('prep-reset-btn').addEventListener('click', resetPrepSession);
 
   // Initial render
   renderWeekStrip();
