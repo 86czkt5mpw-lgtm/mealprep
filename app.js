@@ -304,6 +304,101 @@ function renderMacroBars() {
       <span class="macro-bar-pct">${Math.round(pct * 100)}%</span>
     </div>`;
   }).join('');
+
+  // Mostra bottone suggerimenti solo se c'è gap significativo
+  const protPct = stats[1].target > 0 ? stats[1].val / stats[1].target : 1;
+  const calPct  = stats[0].target > 0 ? stats[0].val / stats[0].target : 1;
+  const hasGap  = protPct < 0.95 || calPct < 0.95;
+  document.getElementById('suggest-row').style.display = hasGap ? 'block' : 'none';
+  if (!hasGap) document.getElementById('suggestions-panel').classList.add('hidden');
+}
+
+/* ── MACRO SUGGESTIONS ───────────────────────────────────────────────────────── */
+function calcGap(dateStr) {
+  const macros  = calcPlanMacros(dateStr);
+  const calTgt  = effectiveCalTarget(dateStr);
+  const targets = { cal: calTgt, prot: TARGETS.prot, carb: TARGETS.carb, fat: TARGETS.fat };
+  return {
+    cal:  Math.max(0, targets.cal  - macros.cal),
+    prot: Math.max(0, targets.prot - macros.prot),
+    carb: Math.max(0, targets.carb - macros.carb),
+    fat:  Math.max(0, targets.fat  - macros.fat),
+  };
+}
+
+function scoreRecipeForGap(recipe, gap) {
+  const m = calcRecipeMacros(recipe);
+  const protScore  = gap.prot > 0 ? Math.min(m.prot / gap.prot, 1) * 2 : 0;
+  const calScore   = gap.cal  > 0 ? Math.min(m.cal  / gap.cal,  1)     : 0;
+  const carbPenalty = gap.carb > 0 ? Math.max(0, (m.carb - gap.carb) / gap.carb) : 0;
+  const fatPenalty  = gap.fat  > 0 ? Math.max(0, (m.fat  - gap.fat)  / gap.fat)  : 0;
+  return protScore + calScore - carbPenalty - fatPenalty;
+}
+
+function renderSuggestions() {
+  const panel = document.getElementById('suggestions-panel');
+  const list  = document.getElementById('suggestions-list');
+  panel.classList.remove('hidden');
+
+  const gap = calcGap(state.selectedDate);
+
+  if (gap.prot <= 5 && gap.cal <= 100) {
+    list.innerHTML = '<div class="suggestions-empty">Target già raggiunto — ottimo!</div>';
+    return;
+  }
+
+  const allRecipes = getAllIngredients ? state.recipes : state.recipes;
+  const scored = state.recipes
+    .map(r => ({ recipe: r, score: scoreRecipeForGap(r, gap) }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3);
+
+  if (scored.length === 0) {
+    list.innerHTML = '<div class="suggestions-empty">Nessuna ricetta disponibile. Creane alcune nel tab RICETTE.</div>';
+    return;
+  }
+
+  list.innerHTML = scored.map(({ recipe, score }, i) => {
+    const m    = calcRecipeMacros(recipe);
+    const cat  = recipe.category || 'snack';
+    const macroItems = [
+      { label: 'KCAL', val: fmt(m.cal),  gap: gap.cal,  raw: m.cal  },
+      { label: 'PROT', val: fmt(m.prot)+'g', gap: gap.prot, raw: m.prot },
+      { label: 'CARB', val: fmt(m.carb)+'g', gap: gap.carb, raw: m.carb },
+      { label: 'GRAS', val: fmt(m.fat)+'g',  gap: gap.fat,  raw: m.fat  },
+    ];
+    return `<div class="suggestion-item">
+      <div>
+        <div class="suggestion-rank">#${i + 1} · ${CAT_LABELS[cat] || cat}</div>
+        <div class="suggestion-name">${recipe.name}</div>
+        <div class="suggestion-macros">
+          ${macroItems.map(mi => {
+            const pct = mi.gap > 0 ? Math.round((mi.raw / mi.gap) * 100) : 0;
+            const cls = pct > 110 ? 'over' : pct >= 80 ? 'good' : 'warn';
+            return `<div class="suggestion-macro">
+              <div class="suggestion-macro-val">${mi.val}</div>
+              <div class="suggestion-macro-label">${mi.label}</div>
+              <div class="suggestion-macro-pct ${cls}">${pct}% gap</div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+      <button class="suggestion-add-btn" data-id="${recipe.id}" data-meal="${cat}">+ AGGIUNGI</button>
+    </div>`;
+  }).join('');
+
+  list.querySelectorAll('.suggestion-add-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const meal    = btn.dataset.meal;
+      const dateStr = state.selectedDate;
+      if (!state.plans[dateStr]) state.plans[dateStr] = { colazione: [], pranzo: [], cena: [], snack: [] };
+      state.plans[dateStr][meal].push(btn.dataset.id);
+      saveState();
+      renderMacroBars();
+      renderMealSlots();
+      renderSuggestions();
+    });
+  });
 }
 
 /* ── PICKER MODAL ────────────────────────────────────────────────────────────── */
@@ -1538,6 +1633,11 @@ function init() {
 
   // Recipe builder
   document.getElementById('new-recipe-btn').addEventListener('click', openRecipeBuilder);
+
+  document.getElementById('suggest-btn').addEventListener('click', renderSuggestions);
+  document.getElementById('suggestions-close').addEventListener('click', () => {
+    document.getElementById('suggestions-panel').classList.add('hidden');
+  });
 
   document.getElementById('view-tiles-btn').addEventListener('click', () => {
     recipeView = 'tiles';
