@@ -1,6 +1,11 @@
 /* ── CONSTANTS ───────────────────────────────────────────────────────────────── */
 const TARGETS = { cal: 2400, prot: 150, carb: 285, fat: 75 };
 const MEALS   = ['colazione', 'pranzo', 'cena', 'snack'];
+// Sostituisci 'DEMO_KEY' con la tua key USDA da https://api.nal.usda.gov/
+const CONFIG = {
+  usdaApiKey: 'DEMO_KEY',
+};
+
 const STORAGE = {
   recipes:    'mealprep_recipes',
   plans:      'mealprep_plans',
@@ -709,12 +714,145 @@ function renderIngredients() {
   });
 }
 
+/* ── INGREDIENT SEARCH ───────────────────────────────────────────────────────── */
+let searchDebounceTimer = null;
+
+function guessCategoryFromMacros(prot, carb, fat, cal) {
+  if (prot >= 15)             return 'proteine';
+  if (fat >= 20)              return 'grassi';
+  if (carb >= 40 && fat < 10) return 'carboidrati';
+  if (cal < 50)               return 'verdure';
+  return 'altro';
+}
+
+async function searchUSDA(query) {
+  const url = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(query)}&api_key=${CONFIG.usdaApiKey}&pageSize=4&dataType=Foundation,SR%20Legacy`;
+  const res  = await fetch(url);
+  if (!res.ok) return [];
+  const data = await res.json();
+
+  return (data.foods || []).map(food => {
+    const get = id => {
+      const n = (food.foodNutrients || []).find(n => n.nutrientId === id);
+      return n ? Math.round(n.value * 10) / 10 : 0;
+    };
+    const cal  = Math.round(get(1008));
+    const prot = get(1003);
+    const carb = get(1005);
+    const fat  = get(1004);
+    return {
+      name:     food.description,
+      source:   'USDA',
+      cal, prot, carb, fat,
+      category: guessCategoryFromMacros(prot, carb, fat, cal),
+    };
+  });
+}
+
+async function searchOpenFoodFacts(query) {
+  const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&json=true&fields=product_name,generic_name,nutriments&page_size=4&action=process`;
+  const res  = await fetch(url);
+  if (!res.ok) return [];
+  const data = await res.json();
+
+  return (data.products || [])
+    .filter(p => p.nutriments && p.nutriments['energy-kcal_100g'])
+    .map(p => {
+      const n    = p.nutriments;
+      const cal  = Math.round(n['energy-kcal_100g'] || 0);
+      const prot = Math.round((n['proteins_100g']       || 0) * 10) / 10;
+      const carb = Math.round((n['carbohydrates_100g']  || 0) * 10) / 10;
+      const fat  = Math.round((n['fat_100g']            || 0) * 10) / 10;
+      return {
+        name:     p.product_name || p.generic_name || '—',
+        source:   'OFF',
+        cal, prot, carb, fat,
+        category: guessCategoryFromMacros(prot, carb, fat, cal),
+      };
+    })
+    .filter(p => p.name && p.name !== '—');
+}
+
+function renderSearchResults(results, isLoading = false) {
+  const container = document.getElementById('ing-search-results');
+
+  if (isLoading) {
+    container.innerHTML = '<div class="ing-search-loading">Ricerca in corso...</div>';
+    container.classList.remove('hidden');
+    return;
+  }
+
+  if (results.length === 0) {
+    container.innerHTML = '<div class="ing-search-loading">Nessun risultato.</div>';
+    container.classList.remove('hidden');
+    return;
+  }
+
+  container.innerHTML = results.map((r, i) => `
+    <div class="ing-search-result" data-idx="${i}">
+      <span class="ing-source-badge ${r.source.toLowerCase()}">${r.source}</span>
+      <span class="ing-search-result-name" title="${r.name}">${r.name}</span>
+      <span class="ing-search-result-macros">${r.cal} kcal · ${r.prot}P · ${r.carb}C · ${r.fat}F</span>
+    </div>`).join('');
+
+  container.querySelectorAll('.ing-search-result').forEach(el => {
+    el.addEventListener('click', () => {
+      const result = results[parseInt(el.dataset.idx, 10)];
+      applySearchResult(result);
+      container.classList.add('hidden');
+    });
+  });
+
+  container.classList.remove('hidden');
+}
+
+function applySearchResult(result) {
+  document.getElementById('ing-name-input').value     = result.name;
+  document.getElementById('ing-category-input').value = result.category;
+  document.getElementById('ing-cal').value            = result.cal;
+  document.getElementById('ing-prot').value           = result.prot;
+  document.getElementById('ing-carb').value           = result.carb;
+  document.getElementById('ing-fat').value            = result.fat;
+}
+
+async function handleIngredientSearch(query) {
+  if (query.length < 2) {
+    document.getElementById('ing-search-results').classList.add('hidden');
+    return;
+  }
+
+  renderSearchResults([], true);
+
+  try {
+    const [usdaResults, offResults] = await Promise.allSettled([
+      searchUSDA(query),
+      searchOpenFoodFacts(query),
+    ]);
+
+    const usda = usdaResults.status === 'fulfilled' ? usdaResults.value : [];
+    const off  = offResults.status  === 'fulfilled' ? offResults.value  : [];
+
+    // Interleave: 2 USDA, 2 OFF, poi resto
+    const merged = [];
+    const maxLen = Math.max(usda.length, off.length);
+    for (let i = 0; i < maxLen && merged.length < 8; i++) {
+      if (usda[i]) merged.push(usda[i]);
+      if (off[i])  merged.push(off[i]);
+    }
+
+    renderSearchResults(merged);
+  } catch {
+    document.getElementById('ing-search-results').classList.add('hidden');
+  }
+}
+
 /* ── INGREDIENT BUILDER MODAL ────────────────────────────────────────────────── */
 function openIngredientBuilder() {
-  ['ing-name-input','ing-cal','ing-prot','ing-carb','ing-fat'].forEach(id => {
+  ['ing-search-input','ing-name-input','ing-cal','ing-prot','ing-carb','ing-fat'].forEach(id => {
     document.getElementById(id).value = '';
   });
   document.getElementById('ing-category-input').value = 'proteine';
+  document.getElementById('ing-search-results').classList.add('hidden');
   document.getElementById('ingredient-builder-modal').classList.remove('hidden');
 }
 
@@ -899,6 +1037,19 @@ function init() {
     if (e.target === e.currentTarget) closeIngredientBuilder();
   });
   document.getElementById('save-ingredient-btn').addEventListener('click', saveCustomIngredient);
+
+  // Ingredient search
+  document.getElementById('ing-search-input').addEventListener('input', e => {
+    clearTimeout(searchDebounceTimer);
+    const q = e.target.value.trim();
+    searchDebounceTimer = setTimeout(() => handleIngredientSearch(q), 500);
+  });
+  // Chiudi risultati cliccando fuori
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.ing-search-wrapper')) {
+      document.getElementById('ing-search-results').classList.add('hidden');
+    }
+  });
 
   // Prep days
   document.getElementById('prep-days').addEventListener('input', renderPrep);
