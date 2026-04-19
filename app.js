@@ -19,14 +19,16 @@ const DAY_NAMES  = ['DOM', 'LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB'];
 /* ── STATE ───────────────────────────────────────────────────────────────────── */
 const state = {
   recipes:           [],
-  plans:             {},   // { 'YYYY-MM-DD': { colazione:[], pranzo:[], cena:[], snack:[], garmin:0 } }
+  plans:             {},
   customIngredients: [],
   selectedDate:      '',
   pickerTargetMeal:  null,
   pickerTargetDate:  null,
   pickerMode:        'ricette',
   weekOffset:        0,
-  pianoView:         'giorno', // 'giorno' | 'settimana'
+  pianoView:         'giorno',
+  copySource:        null, // { entry, meal, dateStr }
+  copyTargetDays:    [],   // dateStr[] selezionati
 };
 
 /* ── DATE HELPERS ────────────────────────────────────────────────────────────── */
@@ -605,6 +607,7 @@ function renderWeekOverview() {
         const label = getEntryLabel(entry);
         return `<div class="wov-chip">
           <span class="wov-chip-name" title="${label}">${label}</span>
+          <button class="wov-chip-copy" data-date="${dateStr}" data-meal="${meal}" data-idx="${idx}" title="Copia in altri giorni">⊕</button>
           <button class="wov-chip-remove" data-date="${dateStr}" data-meal="${meal}" data-idx="${idx}">✕</button>
         </div>`;
       }).join('');
@@ -644,6 +647,16 @@ function renderWeekOverview() {
     });
   });
 
+  // Copy chip to other days
+  container.querySelectorAll('.wov-chip-copy').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const { date, meal, idx } = btn.dataset;
+      const entry = ensurePlan(date)[meal][parseInt(idx, 10)];
+      openCopyDayModal(entry, meal, date);
+    });
+  });
+
   // Remove chip
   container.querySelectorAll('.wov-chip-remove').forEach(btn => {
     btn.addEventListener('click', e => {
@@ -655,6 +668,65 @@ function renderWeekOverview() {
       renderWeekStrip();
     });
   });
+}
+
+/* ── COPY DAY MODAL ──────────────────────────────────────────────────────────── */
+function openCopyDayModal(entry, meal, sourceDate) {
+  state.copySource     = { entry, meal, dateStr: sourceDate };
+  state.copyTargetDays = [];
+
+  document.getElementById('copy-day-item-label').textContent = getEntryLabel(entry);
+
+  const today = todayStr();
+  const days  = getWeekDays(today, state.weekOffset);
+  const grid  = document.getElementById('copy-day-grid');
+
+  grid.innerHTML = days.map(dateStr => {
+    const isSource = dateStr === sourceDate;
+    return `<button class="copy-day-btn ${isSource ? 'is-source' : ''}" data-date="${dateStr}" ${isSource ? 'disabled' : ''}>
+      <span class="cd-name">${dayName(dateStr)}</span>
+      <span class="cd-num">${dayNumber(dateStr)}</span>
+    </button>`;
+  }).join('');
+
+  grid.querySelectorAll('.copy-day-btn:not(.is-source)').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const d = btn.dataset.date;
+      if (state.copyTargetDays.includes(d)) {
+        state.copyTargetDays = state.copyTargetDays.filter(x => x !== d);
+        btn.classList.remove('selected');
+      } else {
+        state.copyTargetDays.push(d);
+        btn.classList.add('selected');
+      }
+    });
+  });
+
+  document.getElementById('copy-day-modal').classList.remove('hidden');
+}
+
+function closeCopyDayModal() {
+  document.getElementById('copy-day-modal').classList.add('hidden');
+  state.copySource     = null;
+  state.copyTargetDays = [];
+}
+
+function applyCopyToDays() {
+  if (!state.copySource || state.copyTargetDays.length === 0) {
+    closeCopyDayModal();
+    return;
+  }
+  const { entry, meal } = state.copySource;
+  state.copyTargetDays.forEach(dateStr => {
+    const plan = ensurePlan(dateStr);
+    // Evita duplicati esatti
+    const alreadyPresent = plan[meal].some(e => JSON.stringify(e) === JSON.stringify(entry));
+    if (!alreadyPresent) plan[meal].push(typeof entry === 'string' ? entry : { ...entry });
+  });
+  saveState();
+  renderWeekOverview();
+  renderWeekStrip();
+  closeCopyDayModal();
 }
 
 /* ── VIEW TOGGLE ─────────────────────────────────────────────────────────────── */
@@ -1018,6 +1090,13 @@ function init() {
   });
   document.getElementById('add-ingredient-row-btn').addEventListener('click', addIngredientRow);
   document.getElementById('save-recipe-btn').addEventListener('click', saveNewRecipe);
+
+  // Copy day modal
+  document.getElementById('copy-day-close').addEventListener('click', closeCopyDayModal);
+  document.getElementById('copy-day-confirm').addEventListener('click', applyCopyToDays);
+  document.getElementById('copy-day-modal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeCopyDayModal();
+  });
 
   // Export / Import
   document.getElementById('export-btn').addEventListener('click', exportData);

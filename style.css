@@ -266,6 +266,8 @@ body {
   opacity: 0;
   transition: color 0.15s, opacity 0.15s;
 }
+.wov-chip:hover .wov-chip-copy { opacity: 1; }
+.wov-chip-copy:hover { color: var(--accent); }
 .wov-chip:hover .wov-chip-remove { opacity: 1; }
 .wov-chip-remove:hover { color: var(--red); }
 .wov-add-btn {
@@ -823,6 +825,38 @@ body {
   transition: color 0.15s;
 }
 .banner-dismiss:hover { color: var(--text); }
+
+/* ── COPY DAY MODAL ────────────────────────────────────────────────────────── */
+.modal-narrow { width: 380px; }
+.copy-day-item-label {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 4px;
+}
+.copy-day-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+.copy-day-btn {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-family: var(--font);
+  border-radius: var(--radius);
+  padding: 8px 4px;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.copy-day-btn .cd-name { display: block; font-size: 9px; letter-spacing: 1px; margin-bottom: 3px; }
+.copy-day-btn .cd-num  { display: block; font-size: 16px; font-weight: 600; line-height: 1; }
+.copy-day-btn.selected { border-color: var(--accent); color: var(--text); background: #2a1500; }
+.copy-day-btn.is-source { border-color: var(--border); color: var(--muted); opacity: 0.4; cursor: default; }
 
 /* ── INGREDIENT SEARCH ─────────────────────────────────────────────────────── */
 .ing-search-wrapper { position: relative; }
