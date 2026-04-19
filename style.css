@@ -947,6 +947,11 @@ body {
 }
 .prod-badge { color: #6ab0ff !important; border-color: #6ab0ff !important; }
 
+#product-search-results {
+  position: static;
+  margin-top: 4px;
+}
+
 .ing-custom-badge {
   display: inline-block;
   font-size: 9px;
