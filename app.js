@@ -887,6 +887,33 @@ function applySearchResult(result) {
   document.getElementById('ing-fat').value            = result.fat;
 }
 
+function isBarcode(query) {
+  return /^\d{8,13}$/.test(query.trim());
+}
+
+async function searchByBarcode(barcode) {
+  const url = `https://world.openfoodfacts.org/api/v0/product/${barcode}.json`;
+  const res  = await fetch(url);
+  if (!res.ok) return [];
+  const data = await res.json();
+  if (data.status !== 1 || !data.product) return [];
+
+  const p = data.product;
+  const n = p.nutriments || {};
+  if (!n['energy-kcal_100g']) return [];
+
+  const cal  = Math.round(n['energy-kcal_100g']      || 0);
+  const prot = Math.round((n['proteins_100g']        || 0) * 10) / 10;
+  const carb = Math.round((n['carbohydrates_100g']   || 0) * 10) / 10;
+  const fat  = Math.round((n['fat_100g']             || 0) * 10) / 10;
+  return [{
+    name:     p.product_name || p.generic_name || barcode,
+    source:   'OFF',
+    cal, prot, carb, fat,
+    category: guessCategoryFromMacros(prot, carb, fat, cal),
+  }];
+}
+
 async function handleIngredientSearch(query) {
   if (query.length < 2) {
     document.getElementById('ing-search-results').classList.add('hidden');
@@ -896,20 +923,22 @@ async function handleIngredientSearch(query) {
   renderSearchResults([], true);
 
   try {
-    const [usdaResults, offResults] = await Promise.allSettled([
-      searchUSDA(query),
-      searchOpenFoodFacts(query),
-    ]);
+    let merged = [];
 
-    const usda = usdaResults.status === 'fulfilled' ? usdaResults.value : [];
-    const off  = offResults.status  === 'fulfilled' ? offResults.value  : [];
-
-    // Interleave: 2 USDA, 2 OFF, poi resto
-    const merged = [];
-    const maxLen = Math.max(usda.length, off.length);
-    for (let i = 0; i < maxLen && merged.length < 8; i++) {
-      if (usda[i]) merged.push(usda[i]);
-      if (off[i])  merged.push(off[i]);
+    if (isBarcode(query)) {
+      merged = await searchByBarcode(query);
+    } else {
+      const [usdaResults, offResults] = await Promise.allSettled([
+        searchUSDA(query),
+        searchOpenFoodFacts(query),
+      ]);
+      const usda = usdaResults.status === 'fulfilled' ? usdaResults.value : [];
+      const off  = offResults.status  === 'fulfilled' ? offResults.value  : [];
+      const maxLen = Math.max(usda.length, off.length);
+      for (let i = 0; i < maxLen && merged.length < 8; i++) {
+        if (usda[i]) merged.push(usda[i]);
+        if (off[i])  merged.push(off[i]);
+      }
     }
 
     renderSearchResults(merged);
