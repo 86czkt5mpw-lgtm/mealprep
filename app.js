@@ -1651,6 +1651,7 @@ function init() {
     document.getElementById('view-tiles-btn').classList.remove('active');
     renderRecipes();
   });
+
   document.getElementById('builder-close').addEventListener('click', closeRecipeBuilder);
   document.getElementById('recipe-builder-modal').addEventListener('click', e => {
     if (e.target === e.currentTarget) closeRecipeBuilder();

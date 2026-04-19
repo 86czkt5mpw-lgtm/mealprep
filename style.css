@@ -668,9 +668,9 @@ body {
   font-size: 13px;
 }
 
-/* ── VIEW TOGGLE ───────────────────────────────────────────────────────────── */
-.view-toggle { display: flex; gap: 2px; }
-.view-toggle-btn {
+/* ── RECIPE VIEW TOGGLE (tiles/lista) ──────────────────────────────────────── */
+.recipe-view-toggle { display: flex; gap: 2px; }
+.recipe-view-btn {
   background: none;
   border: 1px solid var(--border);
   color: var(--muted);
@@ -684,8 +684,8 @@ body {
   justify-content: center;
   transition: color 0.15s, border-color 0.15s;
 }
-.view-toggle-btn:hover { color: var(--text); border-color: var(--muted); }
-.view-toggle-btn.active { color: var(--accent); border-color: var(--accent); }
+.recipe-view-btn:hover { color: var(--text); border-color: var(--muted); }
+.recipe-view-btn.active { color: var(--accent); border-color: var(--accent); }
 
 /* ── RECIPE LIST VIEW ──────────────────────────────────────────────────────── */
 .recipe-list { width: 100%; border-collapse: collapse; }
