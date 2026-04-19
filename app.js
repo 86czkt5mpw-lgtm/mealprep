@@ -118,7 +118,11 @@ function allIngredients() {
 
 /* ── MACRO UTILS ─────────────────────────────────────────────────────────────── */
 function calcRecipeMacros(recipe) {
-  if (recipe.type === 'product') return { ...recipe.macros };
+  if (recipe.type === 'product') {
+    const m = recipe.macros || {};
+    return { cal: m.cal || 0, prot: m.prot || 0, carb: m.carb || 0, fat: m.fat || 0 };
+  }
+  if (!recipe.ingredients || recipe.ingredients.length === 0) return { cal: 0, prot: 0, carb: 0, fat: 0 };
   return recipe.ingredients.reduce((acc, item) => {
     const ing = allIngredients().find(i => i.id === item.ingredientId);
     if (!ing) return acc;
@@ -347,8 +351,13 @@ function renderSuggestions() {
     return;
   }
 
-  const allRecipes = getAllIngredients ? state.recipes : state.recipes;
   const scored = state.recipes
+    .filter(r => {
+      try {
+        const m = calcRecipeMacros(r);
+        return m && typeof m.cal === 'number' && !isNaN(m.cal);
+      } catch(e) { return false; }
+    })
     .map(r => ({ recipe: r, score: scoreRecipeForGap(r, gap) }))
     .sort((a, b) => b.score - a.score)
     .slice(0, 3);
