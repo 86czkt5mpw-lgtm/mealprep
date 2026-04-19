@@ -595,6 +595,77 @@ body {
 .cat-cena      { background: var(--accent); }
 .cat-snack     { background: var(--purple); }
 
+/* ── VIEW TOGGLE ───────────────────────────────────────────────────────────── */
+.view-toggle { display: flex; gap: 2px; }
+.view-toggle-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 14px;
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, border-color 0.15s;
+}
+.view-toggle-btn:hover { color: var(--text); border-color: var(--muted); }
+.view-toggle-btn.active { color: var(--accent); border-color: var(--accent); }
+
+/* ── RECIPE LIST VIEW ──────────────────────────────────────────────────────── */
+.recipe-list { width: 100%; border-collapse: collapse; }
+.recipe-list th {
+  text-align: left;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--muted);
+  font-weight: 600;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.recipe-list th:hover { color: var(--text); }
+.recipe-list th.sorted { color: var(--accent); }
+.recipe-list th:not(:first-child) { text-align: right; }
+.recipe-list th:first-child { text-align: left; }
+.recipe-list td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.recipe-list td:not(:first-child):not(:nth-child(2)) { text-align: right; color: var(--muted); }
+.recipe-list tr:hover td { background: var(--surface); }
+.recipe-list-name { font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.recipe-list-cat {
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--muted);
+}
+.recipe-list-actions { display: flex; justify-content: flex-end; gap: 6px; }
+.recipe-list-actions button {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 4px;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+}
+.recipe-list tr:hover .recipe-list-actions button { opacity: 1; }
+.recipe-list-actions .edit-btn:hover  { color: var(--text); }
+.recipe-list-actions .delete-btn:hover { color: var(--red); }
+.cat-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
 /* ── PREP TAB ──────────────────────────────────────────────────────────────── */
 .prep-days-control {
   display: flex;

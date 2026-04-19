@@ -407,32 +407,109 @@ function confirmIngredientPicker() {
 }
 
 /* ── RENDER: RICETTE ─────────────────────────────────────────────────────────── */
+const CAT_COLORS = { colazione: 'var(--yellow)', pranzo: 'var(--green)', cena: 'var(--accent)', snack: 'var(--purple)' };
+let recipeSortKey = 'name';
+let recipeSortAsc = true;
+let recipeView    = 'tiles'; // 'tiles' | 'list'
+
+function deleteRecipe(id) {
+  state.recipes = state.recipes.filter(r => r.id !== id);
+  Object.values(state.plans).forEach(plan => {
+    MEALS.forEach(meal => {
+      plan[meal] = (plan[meal] || []).filter(entry => entry !== id);
+    });
+  });
+  saveState();
+  renderRecipes();
+  renderMacroBars();
+  renderMealSlots();
+}
+
 function renderRecipes() {
   const grid = document.getElementById('recipe-grid');
   if (state.recipes.length === 0) {
     grid.innerHTML = '<p style="color:var(--muted);font-size:14px">Nessuna ricetta. Creane una con "+ NUOVA RICETTA".</p>';
     return;
   }
-  grid.innerHTML = state.recipes.map(recipe => {
-    const m      = calcRecipeMacros(recipe);
-    const cat    = recipe.category || 'snack';
-    const isProd = recipe.type === 'product';
-    return `<div class="recipe-card">
-      <div class="cat-badge cat-${cat}"></div>
-      <button class="recipe-card-edit" data-id="${recipe.id}" title="Modifica">✎</button>
-      <button class="recipe-card-delete" data-id="${recipe.id}" title="Elimina">✕</button>
-      <div class="recipe-card-name">${recipe.name}${isProd ? '<span class="ing-custom-badge prod-badge">PRODOTTO</span>' : ''}</div>
-      <div class="recipe-card-category">${CAT_LABELS[cat] || cat}</div>
-      <div class="recipe-card-macros">
-        <div class="recipe-macro"><div class="recipe-macro-val">${fmt(m.cal)}</div><div class="recipe-macro-label">KCAL</div></div>
-        <div class="recipe-macro"><div class="recipe-macro-val">${fmt(m.prot)}</div><div class="recipe-macro-label">PROT</div></div>
-        <div class="recipe-macro"><div class="recipe-macro-val">${fmt(m.carb)}</div><div class="recipe-macro-label">CARB</div></div>
-        <div class="recipe-macro"><div class="recipe-macro-val">${fmt(m.fat)}</div><div class="recipe-macro-label">GRAS</div></div>
-      </div>
-    </div>`;
-  }).join('');
 
-  grid.querySelectorAll('.recipe-card-edit').forEach(btn => {
+  const sorted = [...state.recipes].sort((a, b) => {
+    const ma = calcRecipeMacros(a), mb = calcRecipeMacros(b);
+    const vals = { name: [a.name, b.name], cal: [ma.cal, mb.cal], prot: [ma.prot, mb.prot], carb: [ma.carb, mb.carb], fat: [ma.fat, mb.fat] };
+    const [va, vb] = vals[recipeSortKey] || vals.name;
+    const cmp = typeof va === 'string' ? va.localeCompare(vb) : va - vb;
+    return recipeSortAsc ? cmp : -cmp;
+  });
+
+  if (recipeView === 'list') {
+    grid.className = '';
+    const cols = [
+      { key: 'name', label: 'NOME' },
+      { key: 'cal',  label: 'KCAL' },
+      { key: 'prot', label: 'PROT' },
+      { key: 'carb', label: 'CARB' },
+      { key: 'fat',  label: 'GRAS' },
+    ];
+    grid.innerHTML = `<table class="recipe-list">
+      <thead><tr>
+        ${cols.map(c => `<th data-sort="${c.key}" class="${recipeSortKey === c.key ? 'sorted' : ''}">${c.label}${recipeSortKey === c.key ? (recipeSortAsc ? ' ▲' : ' ▼') : ''}</th>`).join('')}
+        <th></th>
+      </tr></thead>
+      <tbody>${sorted.map(recipe => {
+        const m   = calcRecipeMacros(recipe);
+        const cat = recipe.category || 'snack';
+        const isProd = recipe.type === 'product';
+        return `<tr>
+          <td>
+            <div class="recipe-list-name">
+              <span class="cat-dot" style="background:${CAT_COLORS[cat] || 'var(--muted)'}"></span>
+              ${recipe.name}${isProd ? '<span class="ing-custom-badge prod-badge">PRODOTTO</span>' : ''}
+            </div>
+            <div class="recipe-list-cat">${CAT_LABELS[cat] || cat}</div>
+          </td>
+          <td>${fmt(m.cal)}</td>
+          <td>${fmt(m.prot)}g</td>
+          <td>${fmt(m.carb)}g</td>
+          <td>${fmt(m.fat)}g</td>
+          <td>
+            <div class="recipe-list-actions">
+              <button class="edit-btn" data-id="${recipe.id}" title="Modifica">✎</button>
+              <button class="delete-btn" data-id="${recipe.id}" title="Elimina">✕</button>
+            </div>
+          </td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`;
+
+    grid.querySelectorAll('th[data-sort]').forEach(th => {
+      th.addEventListener('click', () => {
+        if (recipeSortKey === th.dataset.sort) recipeSortAsc = !recipeSortAsc;
+        else { recipeSortKey = th.dataset.sort; recipeSortAsc = true; }
+        renderRecipes();
+      });
+    });
+  } else {
+    grid.className = 'recipe-grid';
+    grid.innerHTML = sorted.map(recipe => {
+      const m      = calcRecipeMacros(recipe);
+      const cat    = recipe.category || 'snack';
+      const isProd = recipe.type === 'product';
+      return `<div class="recipe-card">
+        <div class="cat-badge cat-${cat}"></div>
+        <button class="recipe-card-edit" data-id="${recipe.id}" title="Modifica">✎</button>
+        <button class="recipe-card-delete" data-id="${recipe.id}" title="Elimina">✕</button>
+        <div class="recipe-card-name">${recipe.name}${isProd ? '<span class="ing-custom-badge prod-badge">PRODOTTO</span>' : ''}</div>
+        <div class="recipe-card-category">${CAT_LABELS[cat] || cat}</div>
+        <div class="recipe-card-macros">
+          <div class="recipe-macro"><div class="recipe-macro-val">${fmt(m.cal)}</div><div class="recipe-macro-label">KCAL</div></div>
+          <div class="recipe-macro"><div class="recipe-macro-val">${fmt(m.prot)}</div><div class="recipe-macro-label">PROT</div></div>
+          <div class="recipe-macro"><div class="recipe-macro-val">${fmt(m.carb)}</div><div class="recipe-macro-label">CARB</div></div>
+          <div class="recipe-macro"><div class="recipe-macro-val">${fmt(m.fat)}</div><div class="recipe-macro-label">GRAS</div></div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  grid.querySelectorAll('.recipe-card-edit, .edit-btn').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
       const recipe = state.recipes.find(r => r.id === btn.dataset.id);
@@ -440,21 +517,10 @@ function renderRecipes() {
     });
   });
 
-  grid.querySelectorAll('.recipe-card-delete').forEach(btn => {
+  grid.querySelectorAll('.recipe-card-delete, .delete-btn').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
-      const id = btn.dataset.id;
-      state.recipes = state.recipes.filter(r => r.id !== id);
-      // Remove from all plans
-      Object.values(state.plans).forEach(plan => {
-        MEALS.forEach(meal => {
-          plan[meal] = (plan[meal] || []).filter(entry => entry !== id);
-        });
-      });
-      saveState();
-      renderRecipes();
-      renderMacroBars();
-      renderMealSlots();
+      deleteRecipe(btn.dataset.id);
     });
   });
 }
@@ -1472,6 +1538,19 @@ function init() {
 
   // Recipe builder
   document.getElementById('new-recipe-btn').addEventListener('click', openRecipeBuilder);
+
+  document.getElementById('view-tiles-btn').addEventListener('click', () => {
+    recipeView = 'tiles';
+    document.getElementById('view-tiles-btn').classList.add('active');
+    document.getElementById('view-list-btn').classList.remove('active');
+    renderRecipes();
+  });
+  document.getElementById('view-list-btn').addEventListener('click', () => {
+    recipeView = 'list';
+    document.getElementById('view-list-btn').classList.add('active');
+    document.getElementById('view-tiles-btn').classList.remove('active');
+    renderRecipes();
+  });
   document.getElementById('builder-close').addEventListener('click', closeRecipeBuilder);
   document.getElementById('recipe-builder-modal').addEventListener('click', e => {
     if (e.target === e.currentTarget) closeRecipeBuilder();
