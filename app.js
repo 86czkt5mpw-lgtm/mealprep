@@ -750,7 +750,11 @@ function resetPrepSession() {
 /* ── RENDER: WEEK OVERVIEW ───────────────────────────────────────────────────── */
 function renderWeekOverview() {
   const today   = todayStr();
-  const days    = getWeekDays(today, state.weekOffset);
+  // Show 2 weeks: current + next, so user can scroll forward without clicking →
+  const days    = [
+    ...getWeekDays(today, state.weekOffset),
+    ...getWeekDays(today, state.weekOffset + 1),
+  ];
   const container = document.getElementById('week-overview');
 
   container.innerHTML = days.map(dateStr => {
