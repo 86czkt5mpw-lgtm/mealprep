@@ -828,10 +828,10 @@ async function searchOpenFoodFacts(query) {
   const data = await res.json();
 
   return (data.products || [])
-    .filter(p => p.nutriments && p.nutriments['energy-kcal_100g'])
+    .filter(p => p.nutriments)
     .map(p => {
       const n    = p.nutriments;
-      const cal  = Math.round(n['energy-kcal_100g'] || 0);
+      const cal  = offKcal(n);
       const prot = Math.round((n['proteins_100g']       || 0) * 10) / 10;
       const carb = Math.round((n['carbohydrates_100g']  || 0) * 10) / 10;
       const fat  = Math.round((n['fat_100g']            || 0) * 10) / 10;
@@ -891,21 +891,26 @@ function isBarcode(query) {
   return /^\d{8,13}$/.test(query.trim());
 }
 
+function offKcal(n) {
+  if (n['energy-kcal_100g'])  return Math.round(n['energy-kcal_100g']);
+  if (n['energy-kj_100g'])    return Math.round(n['energy-kj_100g'] / 4.184);
+  if (n['energy_100g'])       return Math.round(n['energy_100g'] / 4.184);
+  return 0;
+}
+
 async function searchByBarcode(barcode) {
-  const url = `https://world.openfoodfacts.org/api/v0/product/${barcode}.json`;
+  const url = `https://world.openfoodfacts.org/api/v0/product/${barcode}.json?fields=product_name,generic_name,nutriments`;
   const res  = await fetch(url);
   if (!res.ok) return [];
   const data = await res.json();
   if (data.status !== 1 || !data.product) return [];
 
-  const p = data.product;
-  const n = p.nutriments || {};
-  if (!n['energy-kcal_100g']) return [];
-
-  const cal  = Math.round(n['energy-kcal_100g']      || 0);
-  const prot = Math.round((n['proteins_100g']        || 0) * 10) / 10;
-  const carb = Math.round((n['carbohydrates_100g']   || 0) * 10) / 10;
-  const fat  = Math.round((n['fat_100g']             || 0) * 10) / 10;
+  const p    = data.product;
+  const n    = p.nutriments || {};
+  const cal  = offKcal(n);
+  const prot = Math.round((n['proteins_100g']       || 0) * 10) / 10;
+  const carb = Math.round((n['carbohydrates_100g']  || 0) * 10) / 10;
+  const fat  = Math.round((n['fat_100g']            || 0) * 10) / 10;
   return [{
     name:     p.product_name || p.generic_name || barcode,
     source:   'OFF',
@@ -915,18 +920,31 @@ async function searchByBarcode(barcode) {
 }
 
 async function handleIngredientSearch(query) {
+  const modeEl    = document.getElementById('ing-search-mode');
+  const resultsEl = document.getElementById('ing-search-results');
+
   if (query.length < 2) {
-    document.getElementById('ing-search-results').classList.add('hidden');
+    resultsEl.classList.add('hidden');
+    modeEl.classList.add('hidden');
     return;
   }
+
+  const barcode = isBarcode(query);
+  modeEl.textContent  = barcode ? '▸ BARCODE RILEVATO — ricerca su Open Food Facts' : '▸ RICERCA TESTUALE — USDA + Open Food Facts';
+  modeEl.className    = `ing-search-mode ${barcode ? 'barcode' : ''}`;
 
   renderSearchResults([], true);
 
   try {
     let merged = [];
 
-    if (isBarcode(query)) {
+    if (barcode) {
       merged = await searchByBarcode(query);
+      if (merged.length === 0) {
+        resultsEl.innerHTML = '<div class="ing-search-loading">Barcode non trovato su Open Food Facts.</div>';
+        resultsEl.classList.remove('hidden');
+        return;
+      }
     } else {
       const [usdaResults, offResults] = await Promise.allSettled([
         searchUSDA(query),
@@ -942,8 +960,10 @@ async function handleIngredientSearch(query) {
     }
 
     renderSearchResults(merged);
-  } catch {
-    document.getElementById('ing-search-results').classList.add('hidden');
+  } catch (err) {
+    console.error('Ingredient search error:', err);
+    resultsEl.innerHTML = '<div class="ing-search-loading">Errore di rete. Controlla la connessione.</div>';
+    resultsEl.classList.remove('hidden');
   }
 }
 
@@ -954,6 +974,7 @@ function openIngredientBuilder() {
   });
   document.getElementById('ing-category-input').value = 'proteine';
   document.getElementById('ing-search-results').classList.add('hidden');
+  document.getElementById('ing-search-mode').classList.add('hidden');
   document.getElementById('ingredient-builder-modal').classList.remove('hidden');
 }
 

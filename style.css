@@ -896,6 +896,14 @@ body {
 .ing-source-badge.usda { background: #1a3a1a; color: var(--green); border: 1px solid var(--green); }
 .ing-source-badge.off  { background: #1a2a3a; color: #6ab0ff; border: 1px solid #6ab0ff; }
 .ing-search-loading { padding: 12px; text-align: center; font-size: 12px; color: var(--muted); }
+.ing-search-mode {
+  font-size: 10px;
+  letter-spacing: 1px;
+  padding: 4px 2px;
+  color: var(--muted);
+}
+.ing-search-mode.barcode { color: #6ab0ff; }
+.ing-search-mode.hidden  { display: none; }
 .ing-search-divider {
   display: flex;
   align-items: center;
