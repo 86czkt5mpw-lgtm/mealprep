@@ -21,6 +21,7 @@ const INGREDIENTS = [
   { id: 'avena',          name: 'Avena',               category: 'carboidrati', cal: 389, prot: 17,  carb: 66,  fat: 7   },
   { id: 'farro',          name: 'Farro',               category: 'carboidrati', cal: 340, prot: 15,  carb: 65,  fat: 2.5 },
   { id: 'pane_integrale', name: 'Pane integrale',      category: 'carboidrati', cal: 247, prot: 8,   carb: 41,  fat: 3   },
+  { id: 'fetta_di_pane',  name: 'Fetta di pane',       category: 'carboidrati', cal: 204, prot: 7.7, carb: 44,  fat: 0.3 },
   // GRASSI
   { id: 'avocado',        name: 'Avocado',             category: 'grassi',      cal: 160, prot: 2,   carb: 9,   fat: 15  },
   { id: 'noci',           name: 'Noci',                category: 'grassi',      cal: 654, prot: 15,  carb: 14,  fat: 65  },
