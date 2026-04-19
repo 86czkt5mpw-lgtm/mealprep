@@ -14,7 +14,9 @@ const STORAGE = {
   prepChecked: 'mealprep_prep_checked',
 };
 const BACKUP_REMINDER_DAYS = 7;
-const CAT_LABELS = { colazione: 'COLAZIONE', pranzo: 'PRANZO', cena: 'CENA', snack: 'SNACK' };
+const CAT_LABELS = { colazione: 'COLAZIONE', pasto: 'PASTO', snack: 'SNACK' };
+const AFMEALS    = ['colazione', 'pasto', 'snack']; // categorie ricette per autofill
+const AFMEAL_SLOTS = { colazione: ['colazione'], pasto: ['pranzo', 'cena'], snack: ['snack'] };
 const DAY_NAMES  = ['DOM', 'LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB'];
 
 /* ── STATE ───────────────────────────────────────────────────────────────────── */
@@ -31,7 +33,7 @@ const state = {
   copySource:           null, // { entry, meal, dateStr }
   copyTargetDays:       [],   // dateStr[] selezionati
   prepChecked:          new Set(), // ingredientIds già in casa
-  autofillMeals:        new Set(['colazione', 'pranzo', 'cena', 'snack']),
+  autofillMeals:        new Set(['colazione', 'pasto', 'snack']),
   pendingIngredientRow:   null, // riga ricetta in attesa di nuovo ingrediente
   editingIngredientId:    null, // ID ingrediente in modifica (null = nuovo)
   editingRecipeId:        null, // ID ricetta in modifica (null = nuova)
@@ -191,6 +193,8 @@ function loadState() {
   state.recipes = storedRecipes
     ? JSON.parse(storedRecipes)
     : DEFAULT_RECIPES.map(r => ({ ...r, ingredients: r.ingredients.map(i => ({ ...i })) }));
+  // Migrazione: pranzo/cena → pasto
+  state.recipes.forEach(r => { if (r.category === 'pranzo' || r.category === 'cena') r.category = 'pasto'; });
 
   const storedPlans = localStorage.getItem(STORAGE.plans);
   if (storedPlans) {
@@ -529,7 +533,7 @@ function confirmIngredientPicker() {
 }
 
 /* ── RENDER: RICETTE ─────────────────────────────────────────────────────────── */
-const CAT_COLORS = { colazione: 'var(--yellow)', pranzo: 'var(--green)', cena: 'var(--accent)', snack: 'var(--purple)' };
+const CAT_COLORS = { colazione: 'var(--yellow)', pasto: 'var(--green)', snack: 'var(--purple)' };
 let recipeSortKey = 'name';
 let recipeSortAsc = true;
 let recipeView    = 'list';
@@ -631,7 +635,7 @@ function renderRecipes() {
 function openRecipeBuilder() {
   state.editingRecipeId = null;
   document.getElementById('recipe-name-input').value = '';
-  document.getElementById('recipe-category-input').value = 'snack';
+  document.getElementById('recipe-category-input').value = 'pasto';
   document.getElementById('builder-ingredients').innerHTML = '';
   switchBuilderType('ricetta');
   ['product-cal','product-prot','product-carb','product-fat'].forEach(id => {
@@ -931,26 +935,30 @@ function getAutofillDates() {
 }
 
 function generatePlanJS() {
-  const meals = [...state.autofillMeals];
-  if (meals.length === 0) { showToast('Seleziona almeno un tipo di pasto'); return; }
+  const categories = [...state.autofillMeals];
+  if (categories.length === 0) { showToast('Seleziona almeno un tipo di pasto'); return; }
 
   const dates = getAutofillDates();
 
   const pools = {};
-  MEALS.forEach(meal => {
-    pools[meal] = shuffle(state.recipes.filter(r => (r.category || 'snack') === meal));
+  const ptrs  = {};
+  AFMEALS.forEach(cat => {
+    pools[cat] = shuffle(state.recipes.filter(r => (r.category || 'snack') === cat));
+    ptrs[cat]  = 0;
   });
-  const ptrs = { colazione: 0, pranzo: 0, cena: 0, snack: 0 };
 
   let filled = 0;
   dates.forEach(dateStr => {
     if (!state.plans[dateStr]) state.plans[dateStr] = { colazione: [], pranzo: [], cena: [], snack: [], garmin: 0 };
-    meals.forEach(meal => {
-      const pool = pools[meal];
+    categories.forEach(cat => {
+      const slots = AFMEAL_SLOTS[cat] || [cat];
+      const pool  = pools[cat];
       if (!pool || pool.length === 0) return;
-      if ((state.plans[dateStr][meal] || []).length > 0) return;
-      state.plans[dateStr][meal] = [pool[ptrs[meal]++ % pool.length].id];
-      filled++;
+      slots.forEach(slot => {
+        if ((state.plans[dateStr][slot] || []).length > 0) return;
+        state.plans[dateStr][slot] = [pool[ptrs[cat]++ % pool.length].id];
+        filled++;
+      });
     });
   });
 
@@ -964,13 +972,13 @@ async function generatePlanAI() {
   const apiKey = localStorage.getItem('mealprep_anthropic_key');
   if (!apiKey) { openApiKeyModal(); return; }
 
-  const meals = [...state.autofillMeals];
-  if (meals.length === 0) { showToast('Seleziona almeno un tipo di pasto'); return; }
+  const categories = [...state.autofillMeals];
+  if (categories.length === 0) { showToast('Seleziona almeno un tipo di pasto'); return; }
 
   const dates = getAutofillDates();
 
   const recipeList = state.recipes
-    .filter(r => meals.includes(r.category || 'snack'))
+    .filter(r => categories.includes(r.category || 'snack'))
     .map(r => { const m = calcRecipeMacros(r); return { id: r.id, name: r.name, category: r.category || 'snack', cal: Math.round(m.cal), prot: Math.round(m.prot), carb: Math.round(m.carb), fat: Math.round(m.fat) }; });
 
   if (recipeList.length === 0) { showToast('Nessuna ricetta per le categorie selezionate'); return; }
@@ -979,15 +987,17 @@ async function generatePlanAI() {
   btn.textContent = '...';
   btn.disabled = true;
 
-  const prompt = `Crea un piano pasti per ${dates.length} giorni (${dates[0]} → ${dates[dates.length - 1]}) per: ${meals.join(', ')}.
+  const slotsNeeded = categories.flatMap(c => AFMEAL_SLOTS[c] || [c]);
+  const prompt = `Crea un piano pasti per ${dates.length} giorni (${dates[0]} → ${dates[dates.length - 1]}).
+Slot da riempire ogni giorno: ${slotsNeeded.join(', ')}.
 
-Ricette disponibili:
+Ricette disponibili (category "pasto" = adatta sia per pranzo che cena):
 ${JSON.stringify(recipeList)}
 
 Target giornaliero: ${TARGETS.cal} kcal, ${TARGETS.prot}g prot, ${TARGETS.carb}g carb, ${TARGETS.fat}g grassi.
-Regole: usa ogni ricetta max 2 volte, varia i pasti, assegna UNA ricetta per slot.
+Regole: usa ogni ricetta max 2 volte, varia i pasti, assegna UNA ricetta per slot, pranzo e cena dello stesso giorno devono essere ricette diverse.
 Rispondi SOLO con JSON valido:
-{"${dates[0]}":{"colazione":"id","pranzo":"id","cena":"id"},...}`;
+{"${dates[0]}":{"pranzo":"id","cena":"id"},...}`;
 
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -1823,8 +1833,7 @@ function init() {
       const meal = btn.dataset.meal;
       const isOnlyActive = state.autofillMeals.has(meal) && state.autofillMeals.size === 1;
       if (isOnlyActive) {
-        // torna all-selected
-        MEALS.forEach(m => state.autofillMeals.add(m));
+        AFMEALS.forEach(m => state.autofillMeals.add(m));
       } else {
         // solo mode: seleziona solo questo
         state.autofillMeals.clear();
