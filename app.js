@@ -1,5 +1,5 @@
 /* ── CONSTANTS ───────────────────────────────────────────────────────────────── */
-const TARGETS = { cal: 2400, prot: 150, carb: 285, fat: 75 };
+const TARGETS = { cal: 1618, prot: 150, carb: 285, fat: 75 };
 const MEALS   = ['colazione', 'pranzo', 'cena', 'snack'];
 // Sostituisci 'DEMO_KEY' con la tua key USDA da https://api.nal.usda.gov/
 const CONFIG = {
@@ -150,7 +150,7 @@ function calcPlanMacros(dateStr) {
 
 function effectiveCalTarget(dateStr) {
   const garmin = (state.plans[dateStr] || {}).garmin || 0;
-  return TARGETS.cal + garmin;
+  return TARGETS.cal + garmin * 0.8;
 }
 
 function fmt(n) { return Math.round(n); }
