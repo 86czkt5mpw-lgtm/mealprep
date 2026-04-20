@@ -40,6 +40,8 @@ const INGREDIENTS = [
   { id: 'pomodoro',       name: 'Pomodoro',            category: 'verdure',     cal: 18,  prot: 0.9, carb: 3.9, fat: 0.2 },
   { id: 'cetriolo',       name: 'Cetriolo',            category: 'verdure',     cal: 15,  prot: 0.7, carb: 3.6, fat: 0.1 },
   { id: 'peperone',       name: 'Peperone',            category: 'verdure',     cal: 31,  prot: 1,   carb: 6,   fat: 0.3 },
+  // SNACK
+  { id: 'crisp_piccolo',   name: 'Sacchetto piccolo crisp', category: 'snack',  cal: 519, prot: 6.9, carb: 53.4, fat: 29.3 },
   // FRUTTA
   { id: 'banana',         name: 'Banana',              category: 'frutta',      cal: 89,  prot: 1.1, carb: 23,  fat: 0.3 },
   { id: 'mela',           name: 'Mela',                category: 'frutta',      cal: 52,  prot: 0.3, carb: 14,  fat: 0.2 },
