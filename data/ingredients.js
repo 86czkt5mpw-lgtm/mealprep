@@ -51,4 +51,5 @@ const INGREDIENTS = [
   { id: 'mela',           name: 'Mela',                category: 'frutta',      cal: 52,  prot: 0.3, carb: 14,  fat: 0.2 },
   { id: 'mirtilli',       name: 'Mirtilli',            category: 'frutta',      cal: 57,  prot: 0.7, carb: 14,  fat: 0.3 },
   { id: 'arancia',        name: 'Arancia',             category: 'frutta',      cal: 47,  prot: 0.9, carb: 12,  fat: 0.1 },
+  { id: 'frozen_berries', name: 'Essential Frozen Berries', category: 'frutta', cal: 37,  prot: 0.9, carb: 5.6, fat: 0.5 },
 ];
