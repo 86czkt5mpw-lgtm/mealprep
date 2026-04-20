@@ -12,6 +12,7 @@ const INGREDIENTS = [
   { id: 'yogurt_greco',   name: 'Yogurt greco',        category: 'proteine',    cal: 59,  prot: 10,  carb: 3.6, fat: 0.4 },
   { id: 'cottage',        name: 'Cottage cheese',      category: 'proteine',    cal: 98,  prot: 11,  carb: 3.4, fat: 4.3 },
   { id: 'feta_pdo',       name: 'Feta PDO (Waitrose)', category: 'proteine',    cal: 287, prot: 15.4, carb: 1.9, fat: 24.2 },
+  { id: 'chorizo_vegano', name: 'Chorizo vegano 3 pz', category: 'proteine',    cal: 156, prot: 6.4, carb: 18.0, fat: 5.1 },
   // CARBOIDRATI
   { id: 'riso_basmati',   name: 'Riso basmati',        category: 'carboidrati', cal: 356, prot: 7.5, carb: 79,  fat: 0.5 },
   { id: 'couscous',       name: 'Couscous',            category: 'carboidrati', cal: 376, prot: 13,  carb: 73,  fat: 0.6 },
