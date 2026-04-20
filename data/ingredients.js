@@ -35,6 +35,7 @@ const INGREDIENTS = [
   { id: 'parmigiano',     name: 'Parmigiano Reggiano', category: 'grassi',      cal: 431, prot: 38,  carb: 0,   fat: 29  },
   // VERDURE
   { id: 'zucchina',       name: 'Zucchina',            category: 'verdure',     cal: 17,  prot: 1.2, carb: 3.1, fat: 0.3 },
+  { id: 'zucchina_media', name: 'Zucchina media (1 pz)', category: 'verdure',  cal: 34,  prot: 2.4, carb: 6.2, fat: 0.6 },
   { id: 'carota',         name: 'Carota',              category: 'verdure',     cal: 41,  prot: 0.9, carb: 9.6, fat: 0.2 },
   { id: 'spinaci',        name: 'Spinaci',             category: 'verdure',     cal: 23,  prot: 2.9, carb: 3.6, fat: 0.4 },
   { id: 'broccoli',       name: 'Broccoli',            category: 'verdure',     cal: 34,  prot: 2.8, carb: 7,   fat: 0.4 },
